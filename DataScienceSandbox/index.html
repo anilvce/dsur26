@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Interactive Data Science Sandbox</title>
+
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com">
+    </script>
+
+    <!-- Import Map: resolves React, ReactDOM, lucide-react, and the JSX runtime -->
+    <script type="importmap">
+        {
+            "imports": {
+                "react": "https://esm.sh/react@18.3.1?dev",
+                "react/jsx-runtime": "https://esm.sh/react@18.3.1/jsx-runtime?dev",
+                "react/jsx-dev-runtime": "https://esm.sh/react@18.3.1/jsx-dev-runtime?dev",
+                "react-dom": "https://esm.sh/react-dom@18.3.1?dev",
+                "react-dom/client": "https://esm.sh/react-dom@18.3.1/client?dev",
+                "lucide-react": "https://esm.sh/lucide-react@0.300.0"
+            }
+        }
+    </script>
+
+    <!-- Babel Standalone – transforms TSX/JSX in the browser -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js">
+    </script>
+</head>
+<body class="bg-slate-950 text-slate-100">
+
+    <div id="root"></div>
+
+    <!--
+        Load the .tsx file via fetch, transpile with Babel,
+        then import the resulting module and mount the React app.
+    -->
+    <script type="module">
+        // ---- 1) fetch the .tsx source ----
+        const tsxUrl = new URL('./interactive_data_science_sandbox.tsx', import.meta.url);
+        const response = await fetch(tsxUrl);
+        if (!response.ok) {
+            throw new Error(`Failed to fetch ${tsxUrl}: ${response.status} ${response.statusText}`);
+        }
+        const source = await response.text();
+
+        // ---- 2) transform with Babel ----
+        // Use automatic runtime, preserve ES modules, and handle TypeScript/JSX.
+        const transformResult = Babel.transform(source, {
+            presets: [
+                ['react', { runtime: 'automatic' }],
+                'typescript'
+            ],
+            sourceType: 'module',
+            filename: 'interactive_data_science_sandbox.tsx',
+        });
+
+        const transpiled = transformResult.code;
+
+        // ---- 3) create a Blob URL from the transpiled code ----
+        const blob = new Blob([transpiled], { type: 'application/javascript' });
+        const blobUrl = URL.createObjectURL(blob);
+
+        // ---- 4) import the module and render ----
+        try {
+            // Import React and ReactDOM client separately to use in the loader
+            const React = await import('react');
+            const { createRoot } = await import('react-dom/client');
+
+            const module = await import(blobUrl);
+            const App = module.default;
+
+            const container = document.getElementById('root');
+            const root = createRoot(container);
+            root.render(React.createElement(App));
+        } catch (err) {
+            console.error('Failed to load app:', err);
+            document.getElementById('root').innerHTML = `
+                    <div class="p-8 text-center text-rose-400">
+                        <p class="text-xl font-bold">⚠️ Failed to load the application</p>
+                        <p class="text-sm text-slate-400 mt-2">${err.message}</p>
+                    </div>
+                `;
+        }
+    </script>
+</body>
+</html>
