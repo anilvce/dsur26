@@ -1,0 +1,1169 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>ggplot2 Layer Studio & Interactive Explorer</title>
+
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com">
+    </script>
+
+    <!-- React & ReactDOM -->
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin>
+    </script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin>
+    </script>
+
+    <!-- Babel for transpiling JSX -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js">
+    </script>
+
+    <!-- Custom Tailwind Configuration -->
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        rblue: '#0f172a',
+                        rdark: '#f8fafc',
+                        rteal: '#00a3a6',
+                        rgray: '#f1f5f9'
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: #f1f5f9;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 3px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+        .font-mono-code {
+            font-family: 'Fira Code', 'Courier New', Courier, monospace;
+        }
+        .shadow-soft {
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.06), 0 1px 3px rgba(0, 0, 0, 0.04);
+        }
+        .shadow-soft-hover:hover {
+            box-shadow: 0 8px 30px rgba(0, 0, 0, 0.08), 0 2px 6px rgba(0, 0, 0, 0.05);
+        }
+    </style>
+</head>
+<body class="bg-white text-slate-800 min-h-screen font-sans antialiased selection:bg-sky-200/50 selection:text-sky-900">
+
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect, useMemo } = React;
+
+        // Helper to generate random numbers
+        const rand = (min, max) => Math.round((Math.random() * (max - min) + min) * 10) / 10;
+        const pick = (arr) => arr[Math.floor(Math.random() * arr.length)];
+
+        // ---------- EXPANDED DATASETS ----------
+        const DATASETS = {
+            mpg: {
+                name: "mpg (Fuel Economy)",
+                description: "Fuel economy data from 1999 to 2008 for 38 popular models of cars (expanded).",
+                records: (() => {
+                    // Base records (original 18)
+                    const base = [
+                        { displ: 1.8, hwy: 29, cty: 21, cyl: 4, drv: "f", class: "compact", manufacturer: "audi" },
+                        { displ: 2.0, hwy: 29, cty: 21, cyl: 4, drv: "f", class: "compact", manufacturer: "audi" },
+                        { displ: 2.8, hwy: 26, cty: 16, cyl: 6, drv: "f", class: "compact", manufacturer: "audi" },
+                        { displ: 3.1, hwy: 27, cty: 18, cyl: 6, drv: "f", class: "compact", manufacturer: "audi" },
+                        { displ: 1.8, hwy: 26, cty: 18, cyl: 4, drv: "4", class: "compact", manufacturer: "audi" },
+                        { displ: 2.5, hwy: 25, cty: 17, cyl: 5, drv: "f", class: "compact", manufacturer: "volkswagen" },
+                        { displ: 3.3, hwy: 24, cty: 17, cyl: 6, drv: "4", class: "minivan", manufacturer: "dodge" },
+                        { displ: 3.8, hwy: 22, cty: 15, cyl: 6, drv: "4", class: "minivan", manufacturer: "dodge" },
+                        { displ: 5.2, hwy: 17, cty: 11, cyl: 8, drv: "4", class: "pickup", manufacturer: "dodge" },
+                        { displ: 5.7, hwy: 15, cty: 10, cyl: 8, drv: "4", class: "pickup", manufacturer: "dodge" },
+                        { displ: 4.0, hwy: 20, cty: 14, cyl: 6, drv: "4", class: "suv", manufacturer: "ford" },
+                        { displ: 4.6, hwy: 19, cty: 13, cyl: 8, drv: "4", class: "suv", manufacturer: "ford" },
+                        { displ: 5.4, hwy: 17, cty: 12, cyl: 8, drv: "4", class: "suv", manufacturer: "ford" },
+                        { displ: 2.4, hwy: 33, cty: 22, cyl: 4, drv: "f", class: "midsize", manufacturer: "hyundai" },
+                        { displ: 3.0, hwy: 28, cty: 18, cyl: 6, drv: "f", class: "midsize", manufacturer: "toyota" },
+                        { displ: 3.5, hwy: 29, cty: 19, cyl: 6, drv: "f", class: "midsize", manufacturer: "toyota" },
+                        { displ: 2.7, hwy: 20, cty: 15, cyl: 6, drv: "4", class: "suv", manufacturer: "toyota" },
+                        { displ: 4.7, hwy: 17, cty: 12, cyl: 8, drv: "4", class: "suv", manufacturer: "toyota" }
+                    ];
+
+                    // Generate 40 additional random MPG records
+                    const manufacturers = ["audi", "toyota", "ford", "dodge", "hyundai", "volkswagen", "chevrolet", "honda", "nissan", "subaru"];
+                    const classes = ["compact", "midsize", "suv", "pickup", "minivan", "subcompact", "sports"];
+                    const drvs = ["f", "4", "r"];
+                    const cyls = [4, 5, 6, 8];
+                    const extra = [];
+                    for (let i = 0; i < 40; i++) {
+                        const cyl = pick(cyls);
+                        const displ = (() => {
+                            if (cyl === 4) return rand(1.4, 2.8);
+                            if (cyl === 5) return rand(2.0, 3.0);
+                            if (cyl === 6) return rand(2.5, 4.0);
+                            return rand(4.0, 6.5);
+                        })();
+                        const hwy = Math.round(rand(15, 35));
+                        const cty = Math.round(hwy * rand(0.6, 0.8));
+                        const drv = pick(drvs);
+                        const cls = pick(classes);
+                        const mfr = pick(manufacturers);
+                        extra.push({ displ, hwy, cty, cyl, drv, class: cls, manufacturer: mfr });
+                    }
+                    return base.concat(extra);
+                })(),
+                variables: {
+                    displ: { label: "Engine Displacement (L)", type: "continuous" },
+                    hwy: { label: "Highway Miles / Gallon", type: "continuous" },
+                    cty: { label: "City Miles / Gallon", type: "continuous" },
+                    cyl: { label: "Number of Cylinders", type: "discrete" },
+                    drv: { label: "Drive Train (f/4/r)", type: "categorical" },
+                    class: { label: "Vehicle Class", type: "categorical" }
+                }
+            },
+            iris: {
+                name: "iris (Edgar Anderson's Iris Data)",
+                description: "Measurements in cm of sepal length/width and petal length/width for 3 species (150 records).",
+                records: (() => {
+                    // Generate full 150 records with species-specific distributions
+                    const speciesData = {
+                        setosa: { sl: [4.3, 5.8], sw: [2.3, 4.4], pl: [1.0, 1.9], pw: [0.1, 0.6] },
+                        versicolor: { sl: [4.9, 7.0], sw: [2.0, 3.4], pl: [3.0, 5.1], pw: [1.0, 1.8] },
+                        virginica: { sl: [4.9, 7.9], sw: [2.2, 3.8], pl: [4.5, 6.9], pw: [1.4, 2.5] }
+                    };
+                    const records = [];
+                    for (const [species, ranges] of Object.entries(speciesData)) {
+                        for (let i = 0; i < 50; i++) {
+                            const sepal_length = rand(ranges.sl[0], ranges.sl[1]);
+                            const sepal_width = rand(ranges.sw[0], ranges.sw[1]);
+                            const petal_length = rand(ranges.pl[0], ranges.pl[1]);
+                            const petal_width = rand(ranges.pw[0], ranges.pw[1]);
+                            records.push({ sepal_length, sepal_width, petal_length, petal_width, species });
+                        }
+                    }
+                    return records;
+                })(),
+                variables: {
+                    sepal_length: { label: "Sepal Length (cm)", type: "continuous" },
+                    sepal_width: { label: "Sepal Width (cm)", type: "continuous" },
+                    petal_length: { label: "Petal Length (cm)", type: "continuous" },
+                    petal_width: { label: "Petal Width (cm)", type: "continuous" },
+                    species: { label: "Iris Species", type: "categorical" }
+                }
+            },
+            diamonds: {
+                name: "diamonds (Cut & Clarity Sample)",
+                description: "Prices and quality attributes of a sample of 53,940 round cut diamonds (expanded sample).",
+                records: (() => {
+                    // Base records (original 9)
+                    const base = [
+                        { carat: 0.23, cut: "Ideal", color: "E", clarity: "SI2", price: 326, depth: 61.5 },
+                        { carat: 0.21, cut: "Premium", color: "E", clarity: "SI1", price: 326, depth: 59.8 },
+                        { carat: 0.23, cut: "Good", color: "E", clarity: "VS1", price: 327, depth: 56.9 },
+                        { carat: 0.29, cut: "Premium", color: "I", clarity: "VS2", price: 334, depth: 62.4 },
+                        { carat: 0.31, cut: "Good", color: "J", clarity: "SI2", price: 335, depth: 63.3 },
+                        { carat: 0.24, cut: "Very Good", color: "V", clarity: "VVS2", price: 336, depth: 62.8 },
+                        { carat: 0.70, cut: "Ideal", color: "D", clarity: "SI1", price: 2757, depth: 61.8 },
+                        { carat: 1.01, cut: "Fair", color: "I", clarity: "I1", price: 2788, depth: 65.1 },
+                        { carat: 1.20, cut: "Premium", color: "F", clarity: "VS1", price: 5400, depth: 60.5 }
+                    ];
+                    // Generate 80 additional random diamonds
+                    const cuts = ["Fair", "Good", "Very Good", "Premium", "Ideal"];
+                    const colors = ["D", "E", "F", "G", "H", "I", "J"];
+                    const clarities = ["I1", "SI2", "SI1", "VS2", "VS1", "VVS2", "VVS1", "IF"];
+                    const extra = [];
+                    for (let i = 0; i < 80; i++) {
+                        const carat = rand(0.2, 2.5);
+                        const cut = pick(cuts);
+                        const color = pick(colors);
+                        const clarity = pick(clarities);
+                        // Price roughly proportional to carat and quality
+                        const basePrice = 326 + (carat - 0.2) * 3000;
+                        const qualityFactor = (() => {
+                            let f = 1;
+                            if (cut === "Ideal") f *= 1.3;
+                            else if (cut === "Premium") f *= 1.1;
+                            else if (cut === "Very Good") f *= 1.0;
+                            else if (cut === "Good") f *= 0.9;
+                            else f *= 0.8;
+                            const clarityMap = { "IF": 1.4, "VVS1": 1.3, "VVS2": 1.2, "VS1": 1.1, "VS2": 1.0, "SI1": 0.9,
+                                "SI2": 0.8, "I1": 0.7 };
+                            f *= (clarityMap[clarity] || 1);
+                            return f;
+                        })();
+                        const price = Math.round(basePrice * qualityFactor * (0.8 + Math.random() * 0.4));
+                        const depth = rand(55, 66);
+                        extra.push({ carat, cut, color, clarity, price, depth });
+                    }
+                    return base.concat(extra);
+                })(),
+                variables: {
+                    carat: { label: "Weight (carats)", type: "continuous" },
+                    cut: { label: "Quality of Cut", type: "categorical" },
+                    color: { label: "Diamond Color Grade", type: "categorical" },
+                    clarity: { label: "Clarity Rating", type: "categorical" },
+                    price: { label: "Price ($ USD)", type: "continuous" }
+                }
+            }
+        };
+
+        const PRESETS = [{
+            id: "scatter_smooth",
+            title: "1. Scatter Plot + Smooth Trendline",
+            desc: "geom_point() + geom_smooth() for bivariate relationship analysis",
+            datasetKey: "mpg",
+            xVar: "displ",
+            yVar: "hwy",
+            colorVar: "drv",
+            geom1: "point",
+            geom2: "smooth",
+            coord: "cartesian",
+            theme: "minimal",
+            titleText: "Engine Size vs. Highway Fuel Efficiency",
+            subText: "Data sourced from EPA mpg dataset"
+        }, {
+            id: "boxplot_jitter",
+            title: "2. Boxplot + Jittered Data Points",
+            desc: "geom_boxplot() + geom_jitter() overlaying raw observations",
+            datasetKey: "iris",
+            xVar: "species",
+            yVar: "sepal_length",
+            colorVar: "species",
+            geom1: "boxplot",
+            geom2: "point",
+            coord: "cartesian",
+            theme: "bw",
+            titleText: "Sepal Length Distribution across Iris Species",
+            subText: "Comparing medians and individual sample points"
+        }, {
+            id: "bar_dodge",
+            title: "3. Grouped Bar Chart",
+            desc: "geom_bar() with position='dodge' for category comparisons",
+            datasetKey: "mpg",
+            xVar: "class",
+            yVar: "hwy",
+            colorVar: "drv",
+            geom1: "bar",
+            geom2: "none",
+            coord: "cartesian",
+            theme: "light",
+            titleText: "Average Highway MPG by Vehicle Class and Drivetrain",
+            subText: "Grouped bar visualization using stat='summary'"
+        }, {
+            id: "polar_coxcomb",
+            title: "4. Polar Drivetrain Breakdown (coord_polar)",
+            desc: "coord_polar() transformation creating a Coxcomb chart",
+            datasetKey: "mpg",
+            xVar: "class",
+            yVar: "hwy",
+            colorVar: "class",
+            geom1: "bar",
+            geom2: "none",
+            coord: "polar",
+            theme: "dark",
+            titleText: "Polar Drivetrain Distribution",
+            subText: "Demonstrates coordinate system swapping in ggplot2"
+        }, {
+            id: "facet_grid_demo",
+            title: "5. Faceted Density Distribution",
+            desc: "facet_wrap(~ group) creating multi-panel lattice plots",
+            datasetKey: "iris",
+            xVar: "petal_length",
+            yVar: "petal_width",
+            colorVar: "species",
+            facetVar: "species",
+            geom1: "point",
+            geom2: "none",
+            coord: "cartesian",
+            theme: "classic",
+            titleText: "Petal Metrics Faceted by Species",
+            subText: "Small multiples for un-cluttered categorical inspection"
+        }];
+
+        function App() {
+            // Selected Dataset
+            const [datasetKey, setDatasetKey] = useState("mpg");
+
+            // Core Aesthetic Mapping (aes)
+            const [xVar, setXVar] = useState("displ");
+            const [yVar, setYVar] = useState("hwy");
+            const [colorVar, setColorVar] = useState("drv");
+            const [sizeVar, setSizeVar] = useState("none");
+
+            // Geoms Stack (Layer 1 & Layer 2)
+            const [geom1, setGeom1] = useState("point");
+            const [geom1Size, setGeom1Size] = useState(5);
+            const [geom1Alpha, setGeom1Alpha] = useState(0.8);
+
+            const [geom2, setGeom2] = useState("smooth");
+            const [geom2Alpha, setGeom2Alpha] = useState(0.6);
+
+            // Coordinates System
+            const [coordSystem, setCoordSystem] = useState("cartesian");
+
+            // Faceting
+            const [facetVar, setFacetVar] = useState("none");
+
+            // Color Scale Preset
+            const [colorScale, setColorScale] = useState("default");
+
+            // Themes & Labels
+            const [themePreset, setThemePreset] = useState("minimal");
+            const [plotTitle, setPlotTitle] = useState("Engine Displacement vs. Highway Fuel Efficiency");
+            const [plotSub, setPlotSub] = useState("ggplot2 Grammar of Graphics Exploration");
+            const [xLabel, setXLabel] = useState("");
+            const [yLabel, setYLabel] = useState("");
+
+            // UI State
+            const [activeTab, setActiveTab] = useState("studio");
+            const [showLayerGuide, setShowLayerGuide] = useState(false);
+            const [copySuccess, setCopySuccess] = useState(false);
+            const [hoveredDataPoint, setHoveredDataPoint] = useState(null);
+
+            // Current Active Dataset Definition
+            const currentDataset = DATASETS[datasetKey];
+
+            // Reset variables when switching dataset
+            useEffect(() => {
+                const keys = Object.keys(currentDataset.variables);
+                setXVar(keys[0] || "");
+                setYVar(keys[1] || "");
+                setColorVar(keys[2] || "none");
+                setFacetVar("none");
+            }, [datasetKey]);
+
+            // Apply preset recipe
+            const applyPreset = (preset) => {
+                setDatasetKey(preset.datasetKey);
+                setTimeout(() => {
+                    setXVar(preset.xVar);
+                    setYVar(preset.yVar);
+                    setColorVar(preset.colorVar);
+                    setGeom1(preset.geom1);
+                    setGeom2(preset.geom2);
+                    setCoordSystem(preset.coord);
+                    setThemePreset(preset.theme);
+                    if (preset.facetVar) setFacetVar(preset.facetVar);
+                    else setFacetVar("none");
+                    setPlotTitle(preset.titleText);
+                    setPlotSub(preset.subText);
+                    setActiveTab("studio");
+                }, 50);
+            };
+
+            const rCodeString = useMemo(() => {
+                let code = `# Load library\nlibrary(ggplot2)\n\n`;
+
+                code += `# Layer 1: Data & Aesthetic Mapping\n`;
+                code += `p <- ggplot(data = ${datasetKey}, \n`;
+                code += `            mapping = aes(x = ${xVar}`;
+                if (yVar && yVar !== "none") code += `, y = ${yVar}`;
+                if (colorVar && colorVar !== "none") code += `, color = ${colorVar}, fill = ${colorVar}`;
+                if (sizeVar && sizeVar !== "none") code += `, size = ${sizeVar}`;
+                code += `))\n\n`;
+
+                code += `# Layer 2: Primary Geometry\n`;
+                if (geom1 === "point") {
+                    code += `p <- p + geom_point(size = ${geom1Size / 2}, alpha = ${geom1Alpha})\n`;
+                } else if (geom1 === "bar") {
+                    code +=
+                    `p <- p + geom_bar(stat = "summary", fun = "mean", position = "dodge", alpha = ${geom1Alpha})\n`;
+                } else if (geom1 === "boxplot") {
+                    code += `p <- p + geom_boxplot(alpha = ${geom1Alpha}, outlier.shape = NA)\n`;
+                } else if (geom1 === "line") {
+                    code += `p <- p + geom_line(size = 1.2, alpha = ${geom1Alpha})\n`;
+                } else if (geom1 === "violin") {
+                    code += `p <- p + geom_violin(alpha = ${geom1Alpha}, trim = FALSE)\n`;
+                } else if (geom1 === "tile") {
+                    code += `p <- p + geom_tile(alpha = ${geom1Alpha})\n`;
+                }
+
+                if (geom2 !== "none") {
+                    code += `\n# Layer 3: Secondary Overlay Geometry\n`;
+                    if (geom2 === "smooth") {
+                        code += `p <- p + geom_smooth(method = "loess", se = TRUE, alpha = ${geom2Alpha})\n`;
+                    } else if (geom2 === "point") {
+                        code += `p <- p + geom_jitter(width = 0.15, size = 2, alpha = ${geom2Alpha})\n`;
+                    } else if (geom2 === "line") {
+                        code += `p <- p + geom_line(linetype = "dashed", alpha = ${geom2Alpha})\n`;
+                    }
+                }
+
+                if (colorScale !== "default") {
+                    code += `\n# Layer 4: Color Scales\n`;
+                    if (colorScale === "viridis") {
+                        code += `p <- p + scale_color_viridis_d() + scale_fill_viridis_d()\n`;
+                    } else if (colorScale === "brewer") {
+                        code += `p <- p + scale_color_brewer(palette = "Set1") + scale_fill_brewer(palette = "Set1")\n`;
+                    }
+                }
+
+                if (facetVar !== "none") {
+                    code += `\n# Layer 5: Faceting Small Multiples\n`;
+                    code += `p <- p + facet_wrap(~ ${facetVar})\n`;
+                }
+
+                if (coordSystem !== "cartesian") {
+                    code += `\n# Layer 6: Coordinate System\n`;
+                    if (coordSystem === "flip") code += `p <- p + coord_flip()\n`;
+                    if (coordSystem === "polar") code += `p <- p + coord_polar(theta = "x")\n`;
+                }
+
+                code += `\n# Layer 7: Labels & Visual Theme\n`;
+                code += `p <- p + labs(\n`;
+                code += `  title = "${plotTitle}",\n`;
+                if (plotSub) code += `  subtitle = "${plotSub}",\n`;
+                code += `  x = "${xLabel || xVar}",\n`;
+                code += `  y = "${yLabel || yVar}"\n`;
+                code += `) +\n`;
+                code += `  theme_${themePreset}()\n\n`;
+
+                code += `# Render final plot object\nprint(p)`;
+                return code;
+            }, [datasetKey, xVar, yVar, colorVar, sizeVar, geom1, geom1Size, geom1Alpha, geom2, geom2Alpha,
+                colorScale, facetVar, coordSystem, themePreset, plotTitle, plotSub, xLabel, yLabel
+            ]);
+
+            // Copy R Code to Clipboard
+            const handleCopyCode = () => {
+                navigator.clipboard.writeText(rCodeString);
+                setCopySuccess(true);
+                setTimeout(() => setCopySuccess(false), 2000);
+            };
+
+            // Helper for color palettes in SVG
+            const getColorForGroup = (val, idx) => {
+                const palettes = {
+                    default: ["#3b82f6", "#10b981", "#f59e0b", "#ec4899", "#8b5cf6", "#06b6d4"],
+                    viridis: ["#440154", "#3b528b", "#21908d", "#5dc863", "#fde725"],
+                    brewer: ["#e41a1c", "#377eb8", "#4daf4a", "#984ea3", "#ff7f00"]
+                };
+                const colors = palettes[colorScale] || palettes.default;
+                if (!val) return "#3b82f6";
+                let hash = 0;
+                String(val).split('').forEach(ch => hash = ch.charCodeAt(0) + ((hash << 5) - hash));
+                const pos = Math.abs(hash) % colors.length;
+                return colors[pos];
+            };
+
+            // Determine plot container styles based on theme
+            const getPlotContainerStyle = () => {
+                if (themePreset === 'dark') {
+                    return 'bg-slate-950 border-slate-800 text-slate-100';
+                } else if (themePreset === 'bw' || themePreset === 'classic') {
+                    return 'bg-white border-slate-300 text-slate-900 shadow-soft';
+                } else if (themePreset === 'void') {
+                    return 'bg-white border-slate-200 text-slate-900';
+                } else {
+                    // minimal / light / default
+                    return 'bg-white border-slate-200 text-slate-900 shadow-soft';
+                }
+            };
+
+            const getGridColor = () => {
+                if (themePreset === 'dark') return '#1e293b';
+                if (themePreset === 'bw' || themePreset === 'classic') return '#e2e8f0';
+                return '#e2e8f0';
+            };
+
+            const getAxisColor = () => {
+                if (themePreset === 'dark') return '#475569';
+                if (themePreset === 'bw' || themePreset === 'classic') return '#0f172a';
+                return '#94a3b8';
+            };
+
+            return (
+                <div className="min-h-screen flex flex-col bg-white text-slate-800">
+
+                    {/* APP NAVIGATION HEADER */}
+                    <header className="border-b border-slate-200 bg-white/95 backdrop-blur sticky top-0 z-40 px-6 py-3.5 flex flex-wrap items-center justify-between gap-4 shadow-soft">
+                        <div className="flex items-center space-x-3">
+                            <div className="h-9 w-9 rounded-xl bg-gradient-to-tr from-sky-500 to-indigo-600 flex items-center justify-center font-black text-xl text-white shadow-lg shadow-sky-500/20">
+                                gg
+                            </div>
+                            <div>
+                                <div className="flex items-center space-x-2">
+                                    <h1 className="text-lg font-bold bg-gradient-to-r from-slate-800 via-slate-700 to-sky-700 bg-clip-text text-transparent">
+                                        ggplot2 Layer Studio
+                                    </h1>
+                                    <span className="px-2 py-0.5 text-[10px] font-mono font-semibold bg-sky-100 text-sky-700 border border-sky-200 rounded-md">
+                                        R Grammar of Graphics
+                                    </span>
+                                </div>
+                                <p className="text-xs text-slate-500">Interactive Layer Composer & Live Code Generator</p>
+                            </div>
+                        </div>
+
+                        {/* Top Navigation Tabs */}
+                        <div className="flex bg-slate-100 p-1 rounded-xl border border-slate-200">
+                            <button
+                                onClick={() => setActiveTab("studio")}
+                                className={`px-4 py-1.5 text-xs font-semibold rounded-lg transition-all flex items-center space-x-1.5 ${
+                                    activeTab === "studio" ?
+                                    "bg-gradient-to-r from-sky-600 to-indigo-600 text-white shadow" :
+                                    "text-slate-600 hover:text-slate-900 hover:bg-slate-200/60"
+                                }`}
+                            >
+                                <span>🎨 Studio Canvas</span>
+                            </button>
+                            <button
+                                onClick={() => setActiveTab("cookbook")}
+                                className={`px-4 py-1.5 text-xs font-semibold rounded-lg transition-all flex items-center space-x-1.5 ${
+                                    activeTab === "cookbook" ?
+                                    "bg-gradient-to-r from-sky-600 to-indigo-600 text-white shadow" :
+                                    "text-slate-600 hover:text-slate-900 hover:bg-slate-200/60"
+                                }`}
+                            >
+                                <span>📖 Preset Cookbook</span>
+                            </button>
+                            <button
+                                onClick={() => setActiveTab("cheatsheet")}
+                                className={`px-4 py-1.5 text-xs font-semibold rounded-lg transition-all flex items-center space-x-1.5 ${
+                                    activeTab === "cheatsheet" ?
+                                    "bg-gradient-to-r from-sky-600 to-indigo-600 text-white shadow" :
+                                    "text-slate-600 hover:text-slate-900 hover:bg-slate-200/60"
+                                }`}
+                            >
+                                <span>💡 Layer Cheatsheet</span>
+                            </button>
+                        </div>
+
+                        <div className="flex items-center space-x-2">
+                            <button
+                                onClick={() => setShowLayerGuide(!showLayerGuide)}
+                                className={`px-3 py-1.5 text-xs font-semibold rounded-lg border transition ${
+                                    showLayerGuide ?
+                                    "bg-amber-50 border-amber-300 text-amber-700" :
+                                    "bg-white border-slate-300 text-slate-700 hover:bg-slate-50"
+                                }`}
+                            >
+                                {showLayerGuide ? "Hide Layer Map" : "Grammar Guide"}
+                            </button>
+                            <button
+                                onClick={handleCopyCode}
+                                className="px-3.5 py-1.5 text-xs font-bold bg-sky-600 hover:bg-sky-500 text-white rounded-lg transition flex items-center space-x-1.5 shadow-lg shadow-sky-600/20"
+                            >
+                                <span>{copySuccess ? "✓ Copied R Code!" : "Copy R Code"}</span>
+                            </button>
+                        </div>
+                    </header>
+
+                    {/* GRAMMAR OF GRAPHICS LAYER MAP BANNER */}
+                    {showLayerGuide && (
+                        <div className="bg-slate-50/95 border-b border-slate-200 px-6 py-4 animate-fadeIn">
+                            <div className="max-w-7xl mx-auto">
+                                <h3 className="text-xs font-bold text-amber-600 uppercase tracking-wider mb-3">
+                                    The 7 Seven Pillars of ggplot2 (Grammar of Graphics Architecture)
+                                </h3>
+                                <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-2.5 text-xs">
+                                    <div className="bg-white p-2.5 rounded-lg border border-slate-200 shadow-soft">
+                                        <div className="font-bold text-sky-600 mb-1">1. Data</div>
+                                        <div className="text-[11px] text-slate-600">Data frame in tidy format (<code className="text-sky-600 bg-sky-50 px-1 rounded">data = df</code>).</div>
+                                    </div>
+                                    <div className="bg-white p-2.5 rounded-lg border border-slate-200 shadow-soft">
+                                        <div className="font-bold text-emerald-600 mb-1">2. Aesthetics</div>
+                                        <div className="text-[11px] text-slate-600">Variable mapping (<code className="text-emerald-600 bg-emerald-50 px-1 rounded">aes(x, y, color)</code>).</div>
+                                    </div>
+                                    <div className="bg-white p-2.5 rounded-lg border border-slate-200 shadow-soft">
+                                        <div className="font-bold text-indigo-600 mb-1">3. Geometries</div>
+                                        <div className="text-[11px] text-slate-600">Visual shapes (<code className="text-indigo-600 bg-indigo-50 px-1 rounded">geom_point, geom_bar</code>).</div>
+                                    </div>
+                                    <div className="bg-white p-2.5 rounded-lg border border-slate-200 shadow-soft">
+                                        <div className="font-bold text-purple-600 mb-1">4. Statistics</div>
+                                        <div className="text-[11px] text-slate-600">Transformations (<code className="text-purple-600 bg-purple-50 px-1 rounded">stat_summary, stat_bin</code>).</div>
+                                    </div>
+                                    <div className="bg-white p-2.5 rounded-lg border border-slate-200 shadow-soft">
+                                        <div className="font-bold text-pink-600 mb-1">5. Scales</div>
+                                        <div className="text-[11px] text-slate-600">Axis/Color ranges (<code className="text-pink-600 bg-pink-50 px-1 rounded">scale_x_log10</code>).</div>
+                                    </div>
+                                    <div className="bg-white p-2.5 rounded-lg border border-slate-200 shadow-soft">
+                                        <div className="font-bold text-amber-600 mb-1">6. Coordinates</div>
+                                        <div className="text-[11px] text-slate-600">Space system (<code className="text-amber-600 bg-amber-50 px-1 rounded">coord_flip, coord_polar</code>).</div>
+                                    </div>
+                                    <div className="bg-white p-2.5 rounded-lg border border-slate-200 shadow-soft">
+                                        <div className="font-bold text-rose-600 mb-1">7. Themes</div>
+                                        <div className="text-[11px] text-slate-600">Non-data style (<code className="text-rose-600 bg-rose-50 px-1 rounded">theme_minimal()</code>).</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* MAIN CONTENT WORKSPACE */}
+                    {activeTab === "studio" && (
+                        <main className="flex-1 max-w-7xl w-full mx-auto p-4 md:p-6 grid grid-cols-1 lg:grid-cols-12 gap-6">
+
+                            {/* LEFT PANEL: LAYER BUILDER CONTROLS */}
+                            <section className="lg:col-span-5 space-y-4 custom-scrollbar overflow-y-auto max-h-[85vh] pr-1">
+
+                                {/* 1. DATASET & AESTHETIC MAPPING */}
+                                <div className="bg-white rounded-2xl border border-slate-200 p-4 space-y-4 shadow-soft">
+                                    <div className="flex items-center justify-between border-b border-slate-200 pb-2">
+                                        <span className="text-xs font-bold text-sky-600 uppercase tracking-wider flex items-center space-x-1.5">
+                                            <span>Layer 1: Data & Aesthetics</span>
+                                        </span>
+                                        <span className="text-[10px] font-mono bg-sky-50 text-sky-700 px-2 py-0.5 rounded border border-sky-200">
+                                            ggplot(data, aes(...))
+                                        </span>
+                                    </div>
+
+                                    <div>
+                                        <label className="block text-xs font-semibold text-slate-600 mb-1">Select Active Dataset</label>
+                                        <select
+                                            value={datasetKey}
+                                            onChange={(e) => setDatasetKey(e.target.value)}
+                                            className="w-full bg-white border border-slate-300 rounded-lg text-xs p-2.5 text-slate-800 focus:ring-2 focus:ring-sky-500 focus:border-sky-500 font-mono"
+                                        >
+                                            {Object.keys(DATASETS).map(k => (
+                                                <option key={k} value={k}>{DATASETS[k].name}</option>
+                                            ))}
+                                        </select>
+                                        <p className="text-[11px] text-slate-500 mt-1 italic">{currentDataset.description}</p>
+                                    </div>
+
+                                    <div className="grid grid-cols-2 gap-3 pt-1">
+                                        <div>
+                                            <label className="block text-[11px] font-semibold text-slate-600 mb-1">X-Axis Mapping <code className="text-sky-600">(x)</code></label>
+                                            <select
+                                                value={xVar}
+                                                onChange={(e) => setXVar(e.target.value)}
+                                                className="w-full bg-white border border-slate-300 rounded-lg text-xs p-2 text-slate-800 focus:ring-2 focus:ring-sky-500 focus:border-sky-500"
+                                            >
+                                                {Object.keys(currentDataset.variables).map(v => (
+                                                    <option key={v} value={v}>{v} ({currentDataset.variables[v].type})</option>
+                                                ))}
+                                            </select>
+                                        </div>
+
+                                        <div>
+                                            <label className="block text-[11px] font-semibold text-slate-600 mb-1">Y-Axis Mapping <code className="text-sky-600">(y)</code></label>
+                                            <select
+                                                value={yVar}
+                                                onChange={(e) => setYVar(e.target.value)}
+                                                className="w-full bg-white border border-slate-300 rounded-lg text-xs p-2 text-slate-800 focus:ring-2 focus:ring-sky-500 focus:border-sky-500"
+                                            >
+                                                <option value="none">-- None (1D Stat) --</option>
+                                                {Object.keys(currentDataset.variables).map(v => (
+                                                    <option key={v} value={v}>{v} ({currentDataset.variables[v].type})</option>
+                                                ))}
+                                            </select>
+                                        </div>
+
+                                        <div>
+                                            <label className="block text-[11px] font-semibold text-slate-600 mb-1">Color / Fill <code className="text-emerald-600">(color)</code></label>
+                                            <select
+                                                value={colorVar}
+                                                onChange={(e) => setColorVar(e.target.value)}
+                                                className="w-full bg-white border border-slate-300 rounded-lg text-xs p-2 text-slate-800 focus:ring-2 focus:ring-sky-500 focus:border-sky-500"
+                                            >
+                                                <option value="none">-- Uniform Single Color --</option>
+                                                {Object.keys(currentDataset.variables).map(v => (
+                                                    <option key={v} value={v}>{v}</option>
+                                                ))}
+                                            </select>
+                                        </div>
+
+                                        <div>
+                                            <label className="block text-[11px] font-semibold text-slate-600 mb-1">Size Mapping <code className="text-indigo-600">(size)</code></label>
+                                            <select
+                                                value={sizeVar}
+                                                onChange={(e) => setSizeVar(e.target.value)}
+                                                className="w-full bg-white border border-slate-300 rounded-lg text-xs p-2 text-slate-800 focus:ring-2 focus:ring-sky-500 focus:border-sky-500"
+                                            >
+                                                <option value="none">-- Constant Size --</option>
+                                                {Object.keys(currentDataset.variables).map(v => (
+                                                    <option key={v} value={v}>{v}</option>
+                                                ))}
+                                            </select>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* 2. GEOMETRY LAYERS */}
+                                <div className="bg-white rounded-2xl border border-slate-200 p-4 space-y-4 shadow-soft">
+                                    <div className="flex items-center justify-between border-b border-slate-200 pb-2">
+                                        <span className="text-xs font-bold text-indigo-600 uppercase tracking-wider">
+                                            Layer 2 & 3: Geometries (Geoms)
+                                        </span>
+                                        <span className="text-[10px] font-mono bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded border border-indigo-200">
+                                            geom_*()
+                                        </span>
+                                    </div>
+
+                                    <div className="space-y-2">
+                                        <div className="flex justify-between items-center">
+                                            <label className="text-xs font-semibold text-slate-600">Primary Geometry</label>
+                                            <span className="text-[10px] text-slate-400 font-mono">geom_1</span>
+                                        </div>
+                                        <select
+                                            value={geom1}
+                                            onChange={(e) => setGeom1(e.target.value)}
+                                            className="w-full bg-white border border-slate-300 rounded-lg text-xs p-2 text-slate-800 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 font-mono"
+                                        >
+                                            <option value="point">geom_point() - Scatter Plot Points</option>
+                                            <option value="bar">geom_bar() - Column / Bar Summary</option>
+                                            <option value="boxplot">geom_boxplot() - Median & IQR Boxes</option>
+                                            <option value="line">geom_line() - Connected Time-series Lines</option>
+                                            <option value="violin">geom_violin() - Kernel Density Violins</option>
+                                            <option value="tile">geom_tile() - Matrix Heatmap Tiles</option>
+                                        </select>
+
+                                        <div className="grid grid-cols-2 gap-3 pt-2">
+                                            <div>
+                                                <div className="flex justify-between text-[11px] text-slate-500 mb-1">
+                                                    <span>Point / Line Size</span>
+                                                    <span className="font-mono text-indigo-600">{geom1Size}px</span>
+                                                </div>
+                                                <input
+                                                    type="range"
+                                                    min="2"
+                                                    max="14"
+                                                    value={geom1Size}
+                                                    onChange={(e) => setGeom1Size(parseInt(e.target.value))}
+                                                    className="w-full accent-indigo-500 h-1.5 bg-slate-200 rounded-lg"
+                                                />
+                                            </div>
+
+                                            <div>
+                                                <div className="flex justify-between text-[11px] text-slate-500 mb-1">
+                                                    <span>Alpha (Transparency)</span>
+                                                    <span className="font-mono text-indigo-600">{geom1Alpha}</span>
+                                                </div>
+                                                <input
+                                                    type="range"
+                                                    min="0.1"
+                                                    max="1.0"
+                                                    step="0.1"
+                                                    value={geom1Alpha}
+                                                    onChange={(e) => setGeom1Alpha(parseFloat(e.target.value))}
+                                                    className="w-full accent-indigo-500 h-1.5 bg-slate-200 rounded-lg"
+                                                />
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div className="space-y-2 pt-2 border-t border-slate-200/80">
+                                        <div className="flex justify-between items-center">
+                                            <label className="text-xs font-semibold text-slate-600">Secondary Overlay Geom</label>
+                                            <span className="text-[10px] text-slate-400 font-mono">geom_2 (Layer Stack)</span>
+                                        </div>
+                                        <select
+                                            value={geom2}
+                                            onChange={(e) => setGeom2(e.target.value)}
+                                            className="w-full bg-white border border-slate-300 rounded-lg text-xs p-2 text-slate-800 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 font-mono"
+                                        >
+                                            <option value="none">+ None (Single Layer Plot)</option>
+                                            <option value="smooth">+ geom_smooth() - LOESS Trendline & Confidence Interval</option>
+                                            <option value="point">+ geom_jitter() - Raw Jittered Sample Points</option>
+                                            <option value="line">+ geom_line() - Mean Connecting Guideline</option>
+                                        </select>
+                                    </div>
+                                </div>
+
+                                {/* 3. SCALES, COORDINATES & FACETS */}
+                                <div className="bg-white rounded-2xl border border-slate-200 p-4 space-y-4 shadow-soft">
+                                    <div className="flex items-center justify-between border-b border-slate-200 pb-2">
+                                        <span className="text-xs font-bold text-amber-600 uppercase tracking-wider">
+                                            Layer 4 - 6: Scales, Facets & Coordinates
+                                        </span>
+                                    </div>
+
+                                    <div className="grid grid-cols-2 gap-3">
+                                        <div>
+                                            <label className="block text-[11px] font-semibold text-slate-600 mb-1">Color Palette <code className="text-amber-600">scale_*</code></label>
+                                            <select
+                                                value={colorScale}
+                                                onChange={(e) => setColorScale(e.target.value)}
+                                                className="w-full bg-white border border-slate-300 rounded-lg text-xs p-2 text-slate-800 focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
+                                            >
+                                                <option value="default">Default ggplot2 Palette</option>
+                                                <option value="viridis">scale_color_viridis_d()</option>
+                                                <option value="brewer">scale_color_brewer(Set1)</option>
+                                            </select>
+                                        </div>
+
+                                        <div>
+                                            <label className="block text-[11px] font-semibold text-slate-600 mb-1">Coordinate System <code className="text-amber-600">coord_*</code></label>
+                                            <select
+                                                value={coordSystem}
+                                                onChange={(e) => setCoordSystem(e.target.value)}
+                                                className="w-full bg-white border border-slate-300 rounded-lg text-xs p-2 text-slate-800 focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
+                                            >
+                                                <option value="cartesian">coord_cartesian() [Standard]</option>
+                                                <option value="flip">coord_flip() [Horizontal Swapped]</option>
+                                                <option value="polar">coord_polar() [Coxcomb / Radar]</option>
+                                            </select>
+                                        </div>
+                                    </div>
+
+                                    <div>
+                                        <label className="block text-[11px] font-semibold text-slate-600 mb-1">Facet Grouping Small Multiples <code className="text-amber-600">facet_wrap()</code></label>
+                                        <select
+                                            value={facetVar}
+                                            onChange={(e) => setFacetVar(e.target.value)}
+                                            className="w-full bg-white border border-slate-300 rounded-lg text-xs p-2 text-slate-800 focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
+                                        >
+                                            <option value="none">-- No Faceting (Single Canvas) --</option>
+                                            {Object.keys(currentDataset.variables).map(v => (
+                                                <option key={v} value={v}>facet_wrap(~ {v})</option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                </div>
+
+                                {/* 4. THEME & LABELS */}
+                                <div className="bg-white rounded-2xl border border-slate-200 p-4 space-y-3 shadow-soft">
+                                    <div className="flex items-center justify-between border-b border-slate-200 pb-2">
+                                        <span className="text-xs font-bold text-rose-600 uppercase tracking-wider">
+                                            Layer 7: Theme & Titles
+                                        </span>
+                                        <span className="text-[10px] font-mono bg-rose-50 text-rose-700 px-2 py-0.5 rounded border border-rose-200">
+                                            labs() + theme_*()
+                                        </span>
+                                    </div>
+
+                                    <div className="grid grid-cols-2 gap-3">
+                                        <div>
+                                            <label className="block text-[11px] font-semibold text-slate-600 mb-1">Theme Preset</label>
+                                            <select
+                                                value={themePreset}
+                                                onChange={(e) => setThemePreset(e.target.value)}
+                                                className="w-full bg-white border border-slate-300 rounded-lg text-xs p-2 text-slate-800 focus:ring-2 focus:ring-rose-500 focus:border-rose-500"
+                                            >
+                                                <option value="minimal">theme_minimal()</option>
+                                                <option value="bw">theme_bw()</option>
+                                                <option value="dark">theme_dark()</option>
+                                                <option value="classic">theme_classic()</option>
+                                                <option value="void">theme_void()</option>
+                                                <option value="light">theme_light()</option>
+                                            </select>
+                                        </div>
+
+                                        <div>
+                                            <label className="block text-[11px] font-semibold text-slate-600 mb-1">Main Plot Title</label>
+                                            <input
+                                                type="text"
+                                                value={plotTitle}
+                                                onChange={(e) => setPlotTitle(e.target.value)}
+                                                className="w-full bg-white border border-slate-300 rounded-lg text-xs p-2 text-slate-800 focus:ring-2 focus:ring-rose-500 focus:border-rose-500"
+                                            />
+                                        </div>
+                                    </div>
+                                </div>
+
+                            </section>
+
+                            {/* RIGHT PANEL: LIVE PLOT VISUALIZER & CODE DISPLAY */}
+                            <section className="lg:col-span-7 flex flex-col gap-6">
+
+                                {/* SVG PLOT VISUALIZER CONTAINER */}
+                                <div className={`rounded-2xl border p-6 flex flex-col justify-between relative shadow-soft transition-all duration-300 min-h-[420px] ${getPlotContainerStyle()}`}>
+
+                                    {/* TITLE & SUBTITLE HEADER */}
+                                    <div className="mb-4">
+                                        <h2 className="text-base font-bold tracking-tight">{plotTitle || "ggplot2 Visual Canvas"}</h2>
+                                        {plotSub && <p className={`text-xs mt-0.5 ${themePreset === 'dark' ? 'text-slate-400' : 'text-slate-500'}`}>{plotSub}</p>}
+                                    </div>
+
+                                    {/* DYNAMIC SVG CANVAS RENDERER */}
+                                    <div className="relative flex-1 w-full flex items-center justify-center my-2 min-h-[280px]">
+                                        <svg className="w-full h-full max-h-[340px] overflow-visible" viewBox="0 0 500 300">
+
+                                            {/* Grid Lines */}
+                                            {themePreset !== 'void' && (
+                                                <g stroke={getGridColor()} strokeWidth="1" strokeDasharray="3 3">
+                                                    <line x1="50" y1="50" x2="460" y2="50" />
+                                                    <line x1="50" y1="110" x2="460" y2="110" />
+                                                    <line x1="50" y1="170" x2="460" y2="170" />
+                                                    <line x1="50" y1="230" x2="460" y2="230" />
+                                                </g>
+                                            )}
+
+                                            {/* Axes Lines */}
+                                            {themePreset !== 'void' && (
+                                                <g stroke={getAxisColor()} strokeWidth="1.5">
+                                                    <line x1="50" y1="250" x2="460" y2="250" />
+                                                    <line x1="50" y1="30" x2="50" y2="250" />
+                                                </g>
+                                            )}
+
+                                            {/* Render Dataset Data Points / Shapes */}
+                                            {currentDataset.records.map((rec, idx) => {
+                                                // For categorical x, use index to spread
+                                                let xVal = rec[xVar];
+                                                let yVal = rec[yVar];
+                                                // If x is categorical, we use index for spacing, but we keep numeric if possible
+                                                let cx, cy;
+                                                if (typeof xVal === 'number') {
+                                                    cx = 60 + ((xVal - 1) * 80) % 400;
+                                                } else {
+                                                    cx = 60 + (idx * 15) % 380;
+                                                }
+                                                if (typeof yVal === 'number') {
+                                                    cy = 230 - (yVal * 6) % 170;
+                                                } else {
+                                                    cy = 100 + (idx * 10) % 150;
+                                                }
+                                                // Clamp to visible area
+                                                cx = Math.min(450, Math.max(60, cx));
+                                                cy = Math.min(230, Math.max(40, cy));
+
+                                                if (coordSystem === 'flip') {
+                                                    const temp = cx;
+                                                    cx = cy + 50;
+                                                    cy = temp - 50;
+                                                }
+
+                                                const itemColor = getColorForGroup(rec[colorVar], idx);
+
+                                                return (
+                                                    <g key={idx} className="transition-all duration-300">
+
+                                                        {geom1 === "bar" && (
+                                                            <rect
+                                                                x={cx - 10}
+                                                                y={cy}
+                                                                width="20"
+                                                                height={250 - cy}
+                                                                fill={itemColor}
+                                                                opacity={geom1Alpha}
+                                                                rx="2"
+                                                            />
+                                                        )}
+
+                                                        {geom1 === "boxplot" && idx % 3 === 0 && (
+                                                            <g opacity={geom1Alpha}>
+                                                                <line x1={cx} y1={cy - 30} x2={cx} y2={cy + 40} stroke={itemColor} strokeWidth="2" />
+                                                                <rect x={cx - 15} y={cy - 15} width="30" height="30" fill={itemColor} opacity="0.3" stroke={itemColor} strokeWidth="2" />
+                                                                <line x1={cx - 15} y1={cy} x2={cx + 15} y2={cy} stroke={itemColor} strokeWidth="3" />
+                                                            </g>
+                                                        )}
+
+                                                        {(geom1 === "point" || geom2 === "point") && (
+                                                            <circle
+                                                                cx={cx}
+                                                                cy={cy}
+                                                                r={geom1Size}
+                                                                fill={itemColor}
+                                                                opacity={geom1Alpha}
+                                                                className="hover:scale-125 transition-transform cursor-pointer"
+                                                                onMouseEnter={() => setHoveredDataPoint(rec)}
+                                                                onMouseLeave={() => setHoveredDataPoint(null)}
+                                                            />
+                                                        )}
+
+                                                        {geom1 === "tile" && (
+                                                            <rect
+                                                                x={cx - 18}
+                                                                y={cy - 18}
+                                                                width="36"
+                                                                height="36"
+                                                                fill={itemColor}
+                                                                opacity={geom1Alpha}
+                                                                rx="4"
+                                                            />
+                                                        )}
+
+                                                    </g>
+                                                );
+                                            })}
+
+                                            {/* LOESS Smooth Trendline Overlay (geom_smooth) */}
+                                            {geom2 === "smooth" && (
+                                                <g opacity={geom2Alpha}>
+                                                    <path
+                                                        d="M 60 210 Q 180 180 280 120 T 440 60"
+                                                        fill="none"
+                                                        stroke="#38bdf8"
+                                                        strokeWidth="3.5"
+                                                    />
+                                                    <path
+                                                        d="M 60 225 Q 180 195 280 135 T 440 75 L 440 45 Q 280 105 180 165 Z"
+                                                        fill="#38bdf8"
+                                                        opacity="0.2"
+                                                    />
+                                                </g>
+                                            )}
+
+                                            {/* Polar coordinate grid overlay */}
+                                            {coordSystem === "polar" && (
+                                                <g stroke="#38bdf8" strokeWidth="1" strokeDasharray="2 2" opacity="0.4">
+                                                    <circle cx="250" cy="140" r="100" fill="none" />
+                                                    <circle cx="250" cy="140" r="60" fill="none" />
+                                                    <circle cx="250" cy="140" r="20" fill="none" />
+                                                </g>
+                                            )}
+
+                                        </svg>
+
+                                        {/* Hover Tooltip */}
+                                        {hoveredDataPoint && (
+                                            <div className={`absolute top-2 right-2 ${themePreset === 'dark' ? 'bg-slate-950/90 border-slate-700 text-slate-100' : 'bg-white/95 border-slate-200 text-slate-800 shadow-lg'} border p-2.5 rounded-lg text-[11px] shadow-xl font-mono backdrop-blur`}>
+                                                <div className={`font-bold ${themePreset === 'dark' ? 'text-sky-400' : 'text-sky-600'} mb-1`}>Data Observation</div>
+                                                <div>{xVar}: <span className={themePreset === 'dark' ? 'text-white' : 'text-slate-800'}>{hoveredDataPoint[xVar]}</span></div>
+                                                {yVar !== 'none' && <div>{yVar}: <span className={themePreset === 'dark' ? 'text-white' : 'text-slate-800'}>{hoveredDataPoint[yVar]}</span></div>}
+                                                {colorVar !== 'none' && <div>{colorVar}: <span className="text-emerald-500">{hoveredDataPoint[colorVar]}</span></div>}
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    {/* AXES FOOTER LABELS */}
+                                    <div className={`flex justify-between items-center text-xs pt-2 font-medium ${themePreset === 'dark' ? 'text-slate-400' : 'text-slate-500'}`}>
+                                        <span>Y: {yLabel || yVar}</span>
+                                        <span>X: {xLabel || xVar}</span>
+                                    </div>
+
+                                </div>
+
+                                {/* LIVE R CODE GENERATOR PANEL */}
+                                <div className="bg-white rounded-2xl border border-slate-200 p-4 space-y-3 shadow-soft">
+                                    <div className="flex justify-between items-center">
+                                        <div className="flex items-center space-x-2">
+                                            <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
+                                            <h3 className="text-xs font-bold text-slate-700 uppercase tracking-wider font-mono">
+                                                Generated R Script (ggplot2)
+                                            </h3>
+                                        </div>
+                                        <button
+                                            onClick={handleCopyCode}
+                                            className="text-xs text-sky-600 hover:text-sky-700 font-semibold"
+                                        >
+                                            {copySuccess ? "✓ Copied" : "Copy snippet"}
+                                        </button>
+                                    </div>
+
+                                    <pre className="bg-slate-50 p-4 rounded-xl text-xs font-mono-code text-slate-700 overflow-x-auto border border-slate-200 leading-relaxed custom-scrollbar max-h-56">
+                                        {rCodeString}
+                                    </pre>
+                                </div>
+
+                            </section>
+
+                        </main>
+                    )}
+
+                    {/* PRESET COOKBOOK TAB */}
+                    {activeTab === "cookbook" && (
+                        <main className="flex-1 max-w-7xl w-full mx-auto p-6 space-y-6">
+                            <div>
+                                <h2 className="text-xl font-bold text-slate-800">ggplot2 Recipe Cookbook</h2>
+                                <p className="text-xs text-slate-500 mt-1">Select pre-built industry standard chart patterns to inspect layer configurations.</p>
+                            </div>
+
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                                {PRESETS.map((preset) => (
+                                    <div
+                                        key={preset.id}
+                                        className="bg-white rounded-2xl border border-slate-200 p-5 flex flex-col justify-between hover:border-sky-400/60 hover:shadow-soft-hover transition duration-300 group shadow-soft"
+                                    >
+                                        <div className="space-y-3">
+                                            <div className="flex items-center justify-between">
+                                                <span className="text-[10px] font-mono bg-sky-50 text-sky-700 px-2.5 py-1 rounded-md border border-sky-200">
+                                                    {preset.datasetKey} dataset
+                                                </span>
+                                                <span className="text-xs font-mono text-slate-400">
+                                                    {preset.geom1} + {preset.geom2}
+                                                </span>
+                                            </div>
+                                            <h3 className="text-base font-bold text-slate-800 group-hover:text-sky-600 transition">
+                                                {preset.title}
+                                            </h3>
+                                            <p className="text-xs text-slate-500 leading-relaxed">
+                                                {preset.desc}
+                                            </p>
+                                        </div>
+
+                                        <button
+                                            onClick={() => applyPreset(preset)}
+                                            className="mt-6 w-full py-2.5 bg-slate-100 hover:bg-sky-600 hover:text-white text-slate-700 text-xs font-bold rounded-xl transition flex items-center justify-center space-x-2 border border-slate-200 hover:border-sky-500"
+                                        >
+                                            <span>Load Recipe into Studio</span>
+                                            <span>→</span>
+                                        </button>
+                                    </div>
+                                ))}
+                            </div>
+                        </main>
+                    )}
+
+                    {/* LAYER CHEATSHEET TAB */}
+                    {activeTab === "cheatsheet" && (
+                        <main className="flex-1 max-w-7xl w-full mx-auto p-6 space-y-6">
+                            <div>
+                                <h2 className="text-xl font-bold text-slate-800">ggplot2 Layer Dictionary & Syntax Cheatsheet</h2>
+                                <p className="text-xs text-slate-500 mt-1">Quick-reference guide for key geoms, aesthetics, scales, and facets.</p>
+                            </div>
+
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+
+                                <div className="bg-white rounded-2xl border border-slate-200 p-5 space-y-3 shadow-soft">
+                                    <h3 className="text-sm font-bold text-indigo-600 uppercase tracking-wider border-b border-slate-200 pb-2">
+                                        Geometries (<code className="text-slate-700">geom_*</code>)
+                                    </h3>
+                                    <ul className="text-xs text-slate-600 space-y-2 font-mono">
+                                        <li><strong className="text-sky-600">geom_point():</strong> Scatter plots</li>
+                                        <li><strong className="text-sky-600">geom_line():</strong> Connected observations</li>
+                                        <li><strong className="text-sky-600">geom_bar():</strong> Categorical counts/means</li>
+                                        <li><strong className="text-sky-600">geom_histogram():</strong> Continuous frequency</li>
+                                        <li><strong className="text-sky-600">geom_boxplot():</strong> Medians & quartiles</li>
+                                        <li><strong className="text-sky-600">geom_smooth():</strong> Trendline fitting</li>
+                                        <li><strong className="text-sky-600">geom_tile():</strong> Matrix heatmaps</li>
+                                    </ul>
+                                </div>
+
+                                <div className="bg-white rounded-2xl border border-slate-200 p-5 space-y-3 shadow-soft">
+                                    <h3 className="text-sm font-bold text-amber-600 uppercase tracking-wider border-b border-slate-200 pb-2">
+                                        Scales (<code className="text-slate-700">scale_*</code>)
+                                    </h3>
+                                    <ul className="text-xs text-slate-600 space-y-2 font-mono">
+                                        <li><strong className="text-amber-600">scale_x_log10():</strong> Logarithmic axis</li>
+                                        <li><strong className="text-amber-600">scale_color_viridis_d():</strong> Viridis discrete</li>
+                                        <li><strong className="text-amber-600">scale_fill_gradient():</strong> 2-color gradient</li>
+                                        <li><strong className="text-amber-600">scale_y_continuous():</strong> Limits & breaks</li>
+                                        <li><strong className="text-amber-600">scale_shape_manual():</strong> Custom shapes</li>
+                                    </ul>
+                                </div>
+
+                                <div className="bg-white rounded-2xl border border-slate-200 p-5 space-y-3 shadow-soft">
+                                    <h3 className="text-sm font-bold text-rose-600 uppercase tracking-wider border-b border-slate-200 pb-2">
+                                        Facets & Themes
+                                    </h3>
+                                    <ul className="text-xs text-slate-600 space-y-2 font-mono">
+                                        <li><strong className="text-rose-600">facet_wrap(~ var):</strong> 1D multi-panels</li>
+                                        <li><strong className="text-rose-600">facet_grid(v1 ~ v2):</strong> 2D grid matrix</li>
+                                        <li><strong className="text-rose-600">theme_minimal():</strong> Clean background</li>
+                                        <li><strong className="text-rose-600">theme_bw():</strong> Black & white border</li>
+                                        <li><strong className="text-rose-600">theme(legend.position):</strong> Move legend</li>
+                                    </ul>
+                                </div>
+
+                            </div>
+                        </main>
+                    )}
+
+                    {/* APP FOOTER */}
+                    <footer className="border-t border-slate-200 bg-white py-4 px-6 text-center text-xs text-slate-400">
+                        <p>ggplot2 Layer Studio • Built with React & Tailwind CSS for Data Science & R Learners</p>
+                    </footer>
+
+                </div>
+            );
+        }
+
+        const rootElement = document.getElementById('root');
+        const root = ReactDOM.createRoot(rootElement);
+        root.render(<App />);
+    </script>
+</body>
+</html>
