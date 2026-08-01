@@ -1282,50 +1282,119 @@
                         <main className="flex-1 max-w-7xl w-full mx-auto p-6 space-y-6">
                             <div>
                                 <h2 className="text-xl font-bold text-slate-800">ggplot2 Layer Dictionary & Syntax Cheatsheet</h2>
-                                <p className="text-xs text-slate-500 mt-1">Quick-reference guide for key geoms, aesthetics, scales, and facets.</p>
+                                <p className="text-xs text-slate-500 mt-1">Every control in the Studio Canvas, explained — matches exactly what's available on the left panel.</p>
                             </div>
 
                             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
 
+                                {/* 1. AESTHETICS */}
+                                <div className="bg-white rounded-2xl border border-slate-200 p-5 space-y-3 shadow-soft">
+                                    <h3 className="text-sm font-bold text-emerald-600 uppercase tracking-wider border-b border-slate-200 pb-2">
+                                        Data & Aesthetics (<code className="text-slate-700">aes()</code>)
+                                    </h3>
+                                    <ul className="text-xs text-slate-600 space-y-2">
+                                        <li><strong className="text-emerald-600 font-mono">Select Active Dataset:</strong> Chooses the data frame passed to <code>ggplot(data = ...)</code>. Switching datasets resets X/Y/Color to that dataset's first variables.</li>
+                                        <li><strong className="text-emerald-600 font-mono">X-Axis Mapping (x):</strong> The variable plotted on the horizontal axis.</li>
+                                        <li><strong className="text-emerald-600 font-mono">Y-Axis Mapping (y):</strong> The variable plotted on the vertical axis. Set to "None" for a 1D plot (e.g. a histogram-style count).</li>
+                                        <li><strong className="text-emerald-600 font-mono">Color / Fill (color):</strong> Maps a variable to both <code>color</code> and <code>fill</code>, so categories get distinct outline and fill colors together.</li>
+                                        <li><strong className="text-emerald-600 font-mono">Size Mapping (size):</strong> Maps a variable to marker size — larger values draw larger points.</li>
+                                    </ul>
+                                </div>
+
+                                {/* 2. PRIMARY GEOMETRY */}
                                 <div className="bg-white rounded-2xl border border-slate-200 p-5 space-y-3 shadow-soft">
                                     <h3 className="text-sm font-bold text-indigo-600 uppercase tracking-wider border-b border-slate-200 pb-2">
-                                        Geometries (<code className="text-slate-700">geom_*</code>)
+                                        Primary Geometry (<code className="text-slate-700">geom_1</code>)
                                     </h3>
                                     <ul className="text-xs text-slate-600 space-y-2 font-mono">
-                                        <li><strong className="text-sky-600">geom_point():</strong> Scatter plots</li>
-                                        <li><strong className="text-sky-600">geom_line():</strong> Connected observations</li>
-                                        <li><strong className="text-sky-600">geom_bar():</strong> Categorical counts/means</li>
-                                        <li><strong className="text-sky-600">geom_histogram():</strong> Continuous frequency</li>
-                                        <li><strong className="text-sky-600">geom_boxplot():</strong> Medians & quartiles</li>
-                                        <li><strong className="text-sky-600">geom_smooth():</strong> Trendline fitting</li>
-                                        <li><strong className="text-sky-600">geom_tile():</strong> Matrix heatmaps</li>
+                                        <li><strong className="text-sky-600">geom_point():</strong> One dot per row — scatter plot.</li>
+                                        <li><strong className="text-sky-600">geom_bar():</strong> Column per category, height = mean of Y (<code>stat="summary"</code>).</li>
+                                        <li><strong className="text-sky-600">geom_boxplot():</strong> Median, IQR box, and whiskers per category.</li>
+                                        <li><strong className="text-sky-600">geom_line():</strong> Connects points in order of the X value.</li>
+                                        <li><strong className="text-sky-600">geom_violin():</strong> Mirrored density curve showing the full distribution shape per category.</li>
+                                        <li><strong className="text-sky-600">geom_tile():</strong> Colored square per row — heatmap-style grid.</li>
                                     </ul>
+                                    <div className="pt-2 border-t border-slate-200/80 space-y-1.5 font-sans">
+                                        <div><strong className="text-indigo-600">Point / Line Size:</strong> Marker radius (or line thickness) — maps to <code className="font-mono">size =</code> in the geom call.</div>
+                                        <div><strong className="text-indigo-600">Alpha (Transparency):</strong> Opacity from 0.1 (near invisible) to 1.0 (solid) — useful for overlapping points.</div>
+                                    </div>
                                 </div>
 
+                                {/* 3. SECONDARY OVERLAY GEOM */}
+                                <div className="bg-white rounded-2xl border border-slate-200 p-5 space-y-3 shadow-soft">
+                                    <h3 className="text-sm font-bold text-indigo-600 uppercase tracking-wider border-b border-slate-200 pb-2">
+                                        Secondary Overlay (<code className="text-slate-700">geom_2</code>)
+                                    </h3>
+                                    <ul className="text-xs text-slate-600 space-y-2 font-mono">
+                                        <li><strong className="text-sky-600">None:</strong> Single-layer plot — no overlay added.</li>
+                                        <li><strong className="text-sky-600">geom_smooth():</strong> Adds a LOESS trendline with a shaded confidence band.</li>
+                                        <li><strong className="text-sky-600">geom_jitter():</strong> Adds raw points nudged sideways so they don't overlap — pairs well with boxplot/violin.</li>
+                                        <li><strong className="text-sky-600">geom_line():</strong> Adds a dashed guideline connecting points, layered on top of the primary geom.</li>
+                                    </ul>
+                                    <div className="pt-2 border-t border-slate-200/80 font-sans">
+                                        <strong className="text-indigo-600">Alpha (Transparency):</strong> Opacity of just this overlay layer, independent of the primary geom's alpha.
+                                    </div>
+                                </div>
+
+                                {/* 4. SCALES */}
                                 <div className="bg-white rounded-2xl border border-slate-200 p-5 space-y-3 shadow-soft">
                                     <h3 className="text-sm font-bold text-amber-600 uppercase tracking-wider border-b border-slate-200 pb-2">
-                                        Scales (<code className="text-slate-700">scale_*</code>)
+                                        Color Palette (<code className="text-slate-700">scale_*</code>)
                                     </h3>
                                     <ul className="text-xs text-slate-600 space-y-2 font-mono">
-                                        <li><strong className="text-amber-600">scale_x_log10():</strong> Logarithmic axis</li>
-                                        <li><strong className="text-amber-600">scale_color_viridis_d():</strong> Viridis discrete</li>
-                                        <li><strong className="text-amber-600">scale_fill_gradient():</strong> 2-color gradient</li>
-                                        <li><strong className="text-amber-600">scale_y_continuous():</strong> Limits & breaks</li>
-                                        <li><strong className="text-amber-600">scale_shape_manual():</strong> Custom shapes</li>
+                                        <li><strong className="text-amber-600">Default ggplot2 Palette:</strong> No scale added — uses ggplot2's built-in hue palette.</li>
+                                        <li><strong className="text-amber-600">scale_color_viridis_d():</strong> Colorblind-friendly, perceptually uniform palette.</li>
+                                        <li><strong className="text-amber-600">scale_color_brewer(Set1):</strong> High-contrast ColorBrewer qualitative palette.</li>
                                     </ul>
                                 </div>
 
+                                {/* 5. COORDINATE SYSTEMS */}
                                 <div className="bg-white rounded-2xl border border-slate-200 p-5 space-y-3 shadow-soft">
-                                    <h3 className="text-sm font-bold text-rose-600 uppercase tracking-wider border-b border-slate-200 pb-2">
-                                        Facets & Themes
+                                    <h3 className="text-sm font-bold text-amber-600 uppercase tracking-wider border-b border-slate-200 pb-2">
+                                        Coordinate System (<code className="text-slate-700">coord_*</code>)
                                     </h3>
                                     <ul className="text-xs text-slate-600 space-y-2 font-mono">
-                                        <li><strong className="text-rose-600">facet_wrap(~ var):</strong> 1D multi-panels</li>
-                                        <li><strong className="text-rose-600">facet_grid(v1 ~ v2):</strong> 2D grid matrix</li>
-                                        <li><strong className="text-rose-600">theme_minimal():</strong> Clean background</li>
-                                        <li><strong className="text-rose-600">theme_bw():</strong> Black & white border</li>
-                                        <li><strong className="text-rose-600">theme(legend.position):</strong> Move legend</li>
+                                        <li><strong className="text-amber-600">coord_cartesian():</strong> Standard X/Y grid — the default.</li>
+                                        <li><strong className="text-amber-600">coord_flip():</strong> Swaps the X and Y axes — turns vertical bars horizontal.</li>
+                                        <li><strong className="text-amber-600">coord_polar():</strong> Wraps the X axis around a circle. With <code>geom_bar()</code>, this produces a coxcomb/pie-style chart.</li>
                                     </ul>
+                                </div>
+
+                                {/* 6. FACETS */}
+                                <div className="bg-white rounded-2xl border border-slate-200 p-5 space-y-3 shadow-soft">
+                                    <h3 className="text-sm font-bold text-amber-600 uppercase tracking-wider border-b border-slate-200 pb-2">
+                                        Faceting (<code className="text-slate-700">facet_wrap()</code>)
+                                    </h3>
+                                    <ul className="text-xs text-slate-600 space-y-2 font-mono">
+                                        <li><strong className="text-amber-600">No Faceting:</strong> Single canvas, all data in one panel.</li>
+                                        <li><strong className="text-amber-600">facet_wrap(~ var):</strong> Splits the plot into one small-multiple panel per unique value of the chosen variable. Works best on categorical variables — a continuous variable creates one panel per unique number.</li>
+                                    </ul>
+                                </div>
+
+                                {/* 7. THEMES */}
+                                <div className="bg-white rounded-2xl border border-slate-200 p-5 space-y-3 shadow-soft">
+                                    <h3 className="text-sm font-bold text-rose-600 uppercase tracking-wider border-b border-slate-200 pb-2">
+                                        Theme Preset (<code className="text-slate-700">theme_*()</code>)
+                                    </h3>
+                                    <ul className="text-xs text-slate-600 space-y-2 font-mono">
+                                        <li><strong className="text-rose-600">theme_minimal():</strong> Light background, no border, subtle grid.</li>
+                                        <li><strong className="text-rose-600">theme_bw():</strong> White background with a black border and grid.</li>
+                                        <li><strong className="text-rose-600">theme_dark():</strong> Dark panel background for high-contrast plots.</li>
+                                        <li><strong className="text-rose-600">theme_classic():</strong> White background, only X/Y axis lines, no grid.</li>
+                                        <li><strong className="text-rose-600">theme_void():</strong> Removes axes, grid, and background entirely.</li>
+                                        <li><strong className="text-rose-600">theme_light():</strong> Light grey grid on a white background with thin axis lines.</li>
+                                    </ul>
+                                </div>
+
+                                {/* 8. LABELS */}
+                                <div className="bg-white rounded-2xl border border-slate-200 p-5 space-y-3 shadow-soft">
+                                    <h3 className="text-sm font-bold text-rose-600 uppercase tracking-wider border-b border-slate-200 pb-2">
+                                        Titles & Labels (<code className="text-slate-700">labs()</code>)
+                                    </h3>
+                                    <ul className="text-xs text-slate-600 space-y-2 font-mono">
+                                        <li><strong className="text-rose-600">Main Plot Title:</strong> Sets <code>labs(title = ...)</code>, shown above the canvas.</li>
+                                    </ul>
+                                    <p className="text-[11px] text-slate-500 font-sans pt-1">Subtitle and custom axis labels are also written into the generated R code from the Studio's title fields when set.</p>
                                 </div>
 
                             </div>
