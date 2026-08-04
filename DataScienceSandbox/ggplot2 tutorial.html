@@ -297,6 +297,80 @@
             subText: "Small multiples for un-cluttered categorical inspection"
         }];
 
+        // ---------- PRACTICE CHALLENGES ----------
+        // Each challenge names a target configuration. Students set up the
+        // Studio manually, then hit "Check My Plot" to verify against `target`.
+        const CHALLENGES = [{
+            id: 1,
+            level: "Beginner",
+            title: "Basic Scatter Plot",
+            instructions: "Using the mpg dataset, map displ to the X-axis, hwy to the Y-axis, and use geom_point() as the primary geometry.",
+            target: { datasetKey: "mpg", xVar: "displ", yVar: "hwy", geom1: "point" }
+        }, {
+            id: 2,
+            level: "Beginner",
+            title: "Adding a Grouping Color",
+            instructions: "Same as Challenge 1 (mpg, displ vs hwy, geom_point()), but now color the points by drv.",
+            target: { datasetKey: "mpg", xVar: "displ", yVar: "hwy", geom1: "point", colorVar: "drv" }
+        }, {
+            id: 3,
+            level: "Intermediate",
+            title: "Comparing Distributions",
+            instructions: "Use the iris dataset. Put Species on X, Sepal.Length on Y, and use geom_boxplot() to compare distributions across species.",
+            target: { datasetKey: "iris", xVar: "Species", yVar: "Sepal.Length", geom1: "boxplot" }
+        }, {
+            id: 4,
+            level: "Intermediate",
+            title: "Flipping Coordinates",
+            instructions: "Using mpg, plot class on X and hwy on Y with geom_bar(), then apply coord_flip() so the bars run horizontally.",
+            target: { datasetKey: "mpg", xVar: "class", yVar: "hwy", geom1: "bar", coordSystem: "flip" }
+        }, {
+            id: 5,
+            level: "Advanced",
+            title: "Small Multiples with facet_wrap()",
+            instructions: "Using iris, map Petal.Length to X and Petal.Width to Y with geom_point(), then facet the plot by Species.",
+            target: { datasetKey: "iris", xVar: "Petal.Length", yVar: "Petal.Width", geom1: "point", facetVar: "Species" }
+        }, {
+            id: 6,
+            level: "Advanced",
+            title: "Polar Coxcomb Chart",
+            instructions: "Using mpg, map class to X with geom_bar(), then switch the coordinate system to coord_polar() to build a coxcomb chart.",
+            target: { datasetKey: "mpg", xVar: "class", geom1: "bar", coordSystem: "polar" }
+        }];
+
+        const CHALLENGE_FIELD_LABELS = {
+            datasetKey: "Dataset", xVar: "X-Axis", yVar: "Y-Axis", colorVar: "Color / Fill",
+            geom1: "Primary Geometry", geom2: "Secondary Overlay", coordSystem: "Coordinate System",
+            facetVar: "Facet Variable", themePreset: "Theme"
+        };
+
+        // ---------- COMMON GGPLOT2 / R MISTAKES ----------
+        const COMMON_MISTAKES = [{
+            mistake: "Column name doesn't match the real dataset",
+            symptom: "Error: object 'sepal_length' not found",
+            fix: "R is case- and punctuation-sensitive. Base R's iris uses Sepal.Length (dot, capital S), not sepal_length. Always check exact column names with names(your_data) before writing aes()."
+        }, {
+            mistake: "Putting + at the start of the next line instead of the end of the current one",
+            symptom: "Error: unexpected symbol, or the console just shows a hanging + prompt",
+            fix: "In ggplot2, + must end the line it belongs to:\nggplot(...) +\n  geom_point()\nnot\nggplot(...)\n+ geom_point()"
+        }, {
+            mistake: "Quoting a variable name inside aes()",
+            symptom: "Every point plots at the same position, or a flat/constant line appears",
+            fix: "aes(x = \"displ\") treats \"displ\" as a literal text string, not a column. Column names inside aes() are never quoted: aes(x = displ)."
+        }, {
+            mistake: "Forgetting library(ggplot2) before running the code",
+            symptom: "Error: could not find function \"ggplot\"",
+            fix: "Run library(ggplot2) once per R session before any ggplot2 code — it's the very first line of every script this tool generates."
+        }, {
+            mistake: "Expecting geom_bar() to plot a Y value directly",
+            symptom: "Bars show counts instead of the values you expected, or an error about stat",
+            fix: "geom_bar() defaults to counting rows per category (stat = \"count\"). To plot a precomputed Y value per category, either use geom_col(), or set geom_bar(stat = \"summary\", fun = \"mean\") like this tool does."
+        }, {
+            mistake: "Mapping inside the wrong aes()",
+            symptom: "A color/size mapping seems to apply to every layer, or to none of them",
+            fix: "aes() inside ggplot() applies to every layer by default. aes() inside a specific geom_*() applies only to that one layer — use this when only one layer should be grouped or colored."
+        }];
+
         function App() {
             // Selected Dataset
             const [datasetKey, setDatasetKey] = useState("mpg");
@@ -337,6 +411,15 @@
             const [showHelp, setShowHelp] = useState(false);
             const [copySuccess, setCopySuccess] = useState(false);
             const [hoveredDataPoint, setHoveredDataPoint] = useState(null);
+            const [classroomMode, setClassroomMode] = useState(false);
+            const [challengeResults, setChallengeResults] = useState({});
+            const [dismissedNotesKey, setDismissedNotesKey] = useState(null);
+
+            // Scale the whole UI up (rem-based) for projector/classroom visibility
+            useEffect(() => {
+                document.documentElement.style.fontSize = classroomMode ? "19px" : "";
+                return () => { document.documentElement.style.fontSize = ""; };
+            }, [classroomMode]);
 
             // Current Active Dataset Definition
             const currentDataset = DATASETS[datasetKey];
@@ -450,6 +533,35 @@
                 navigator.clipboard.writeText(rCodeString);
                 setCopySuccess(true);
                 setTimeout(() => setCopySuccess(false), 2000);
+            };
+
+            // Download the generated R code as a real .R script file
+            const handleDownloadCode = () => {
+                const blob = new Blob([rCodeString], { type: "text/plain" });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement("a");
+                a.href = url;
+                a.download = `${datasetKey}_ggplot2_script.R`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+            };
+
+            // Current Studio configuration, used to grade Practice Challenges
+            const currentStudioState = {
+                datasetKey, xVar, yVar, colorVar, geom1, geom2, coordSystem, facetVar, themePreset
+            };
+
+            const checkChallenge = (challenge) => {
+                const mismatches = [];
+                Object.entries(challenge.target).forEach(([field, expected]) => {
+                    if (currentStudioState[field] !== expected) {
+                        mismatches.push({ field, expected, got: currentStudioState[field] });
+                    }
+                });
+                const result = { passed: mismatches.length === 0, mismatches };
+                setChallengeResults(prev => ({ ...prev, [challenge.id]: result }));
             };
 
             // Helper for color palettes in SVG
@@ -770,6 +882,10 @@
                 );
             };
 
+            const activeNotes = getActiveNotes();
+            const activeNotesKey = activeNotes.join("||");
+            const showNotesPanel = activeNotes.length > 0 && dismissedNotesKey !== activeNotesKey;
+
             return (
                 <div className="min-h-screen flex flex-col bg-white text-slate-800">
 
@@ -824,9 +940,30 @@
                             >
                                 <span>💡 Layer Cheatsheet</span>
                             </button>
+                            <button
+                                onClick={() => setActiveTab("practice")}
+                                className={`px-4 py-1.5 text-xs font-semibold rounded-lg transition-all flex items-center space-x-1.5 ${
+                                    activeTab === "practice" ?
+                                    "bg-gradient-to-r from-sky-600 to-indigo-600 text-white shadow" :
+                                    "text-slate-600 hover:text-slate-900 hover:bg-slate-200/60"
+                                }`}
+                            >
+                                <span>🎯 Practice</span>
+                            </button>
                         </div>
 
                         <div className="flex items-center space-x-2">
+                            <button
+                                onClick={() => setClassroomMode(!classroomMode)}
+                                title="Scale the whole app up for projector / back-of-classroom viewing"
+                                className={`px-3 py-1.5 text-xs font-semibold rounded-lg border transition ${
+                                    classroomMode ?
+                                    "bg-indigo-50 border-indigo-300 text-indigo-700" :
+                                    "bg-white border-slate-300 text-slate-700 hover:bg-slate-50"
+                                }`}
+                            >
+                                {classroomMode ? "🔎 Classroom Mode: ON" : "🔎 Classroom Mode"}
+                            </button>
                             <button
                                 onClick={() => setShowLayerGuide(!showLayerGuide)}
                                 className={`px-3 py-1.5 text-xs font-semibold rounded-lg border transition ${
@@ -842,6 +979,12 @@
                                 className="px-3 py-1.5 text-xs font-semibold rounded-lg border bg-white border-slate-300 text-slate-700 hover:bg-slate-50 transition flex items-center space-x-1"
                             >
                                 <span>❓ Help</span>
+                            </button>
+                            <button
+                                onClick={handleDownloadCode}
+                                className="px-3 py-1.5 text-xs font-semibold rounded-lg border bg-white border-slate-300 text-slate-700 hover:bg-slate-50 transition flex items-center space-x-1"
+                            >
+                                <span>⬇ Download .R</span>
                             </button>
                             <button
                                 onClick={handleCopyCode}
@@ -1175,13 +1318,32 @@
                                             ? visibleFacets.map(g => renderPanel(g.records, g.key, true))
                                             : renderPanel(visibleFacets[0].records, null, false)}
 
-                                        {/* Hover Tooltip */}
+                                        {/* Hover Tooltip (top-left, so it doesn't collide with the notes panel) */}
                                         {hoveredDataPoint && (
-                                            <div className={`absolute top-2 right-2 z-10 ${themePreset === 'dark' ? 'bg-slate-950/90 border-slate-700 text-slate-100' : 'bg-white/95 border-slate-200 text-slate-800 shadow-lg'} border p-2.5 rounded-lg text-[11px] shadow-xl font-mono backdrop-blur`}>
+                                            <div className={`absolute top-2 left-2 z-10 ${themePreset === 'dark' ? 'bg-slate-950/90 border-slate-700 text-slate-100' : 'bg-white/95 border-slate-200 text-slate-800 shadow-lg'} border p-2.5 rounded-lg text-[11px] shadow-xl font-mono backdrop-blur`}>
                                                 <div className={`font-bold ${themePreset === 'dark' ? 'text-sky-400' : 'text-sky-600'} mb-1`}>Data Observation</div>
                                                 <div>{xVar}: <span className={themePreset === 'dark' ? 'text-white' : 'text-slate-800'}>{hoveredDataPoint[xVar]}</span></div>
                                                 {yVar !== 'none' && <div>{yVar}: <span className={themePreset === 'dark' ? 'text-white' : 'text-slate-800'}>{hoveredDataPoint[yVar]}</span></div>}
                                                 {colorVar !== 'none' && <div>{colorVar}: <span className="text-emerald-500">{hoveredDataPoint[colorVar]}</span></div>}
+                                            </div>
+                                        )}
+
+                                        {/* WHY-IT-LOOKS-LIKE-THIS EXPLANATION PANEL — floating, top-right, dismissible */}
+                                        {showNotesPanel && (
+                                            <div className={`absolute top-2 right-2 z-20 w-64 max-w-[80%] rounded-lg border p-3 space-y-1.5 text-[11px] leading-relaxed shadow-lg backdrop-blur ${themePreset === 'dark' ? 'bg-amber-950/90 border-amber-800/60 text-amber-200' : 'bg-amber-50/95 border-amber-200 text-amber-800'}`}>
+                                                <div className="flex items-start justify-between">
+                                                    <span className="font-bold">ℹ️ Preview notes</span>
+                                                    <button
+                                                        onClick={() => setDismissedNotesKey(activeNotesKey)}
+                                                        aria-label="Dismiss notes"
+                                                        className={`leading-none text-sm px-1 -mt-0.5 -mr-1 rounded hover:bg-black/10 ${themePreset === 'dark' ? 'text-amber-300' : 'text-amber-700'}`}
+                                                    >
+                                                        ✕
+                                                    </button>
+                                                </div>
+                                                {activeNotes.map((note, i) => (
+                                                    <div key={i}>{note}</div>
+                                                ))}
                                             </div>
                                         )}
                                     </div>
@@ -1191,18 +1353,6 @@
                                         <span>Y: {yLabel || yVar}</span>
                                         <span>X: {xLabel || xVar}</span>
                                     </div>
-
-                                    {/* WHY-IT-LOOKS-LIKE-THIS EXPLANATION CALLOUT */}
-                                    {getActiveNotes().length > 0 && (
-                                        <div className={`mt-3 rounded-lg border p-3 space-y-1.5 text-[11px] leading-relaxed ${themePreset === 'dark' ? 'bg-amber-950/30 border-amber-800/50 text-amber-200' : 'bg-amber-50 border-amber-200 text-amber-800'}`}>
-                                            {getActiveNotes().map((note, i) => (
-                                                <div key={i} className="flex items-start space-x-1.5">
-                                                    <span>ℹ️</span>
-                                                    <span>{note}</span>
-                                                </div>
-                                            ))}
-                                        </div>
-                                    )}
 
                                 </div>
 
@@ -1401,6 +1551,73 @@
                         </main>
                     )}
 
+                    {/* PRACTICE TAB */}
+                    {activeTab === "practice" && (
+                        <main className="flex-1 max-w-7xl w-full mx-auto p-6 space-y-8">
+                            <div>
+                                <h2 className="text-xl font-bold text-slate-800">Practice Challenges</h2>
+                                <p className="text-xs text-slate-500 mt-1">Configure the Studio Canvas to match each brief, then check your answer. Switch to the "Studio Canvas" tab to make changes, and come back here to check.</p>
+                            </div>
+
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                                {CHALLENGES.map(ch => {
+                                    const result = challengeResults[ch.id];
+                                    const levelColor = ch.level === "Beginner" ? "text-emerald-600 bg-emerald-50 border-emerald-200"
+                                        : ch.level === "Intermediate" ? "text-amber-600 bg-amber-50 border-amber-200"
+                                        : "text-rose-600 bg-rose-50 border-rose-200";
+                                    return (
+                                        <div key={ch.id} className="bg-white rounded-2xl border border-slate-200 p-5 space-y-3 shadow-soft">
+                                            <div className="flex items-center justify-between">
+                                                <h3 className="text-sm font-bold text-slate-800">{ch.id}. {ch.title}</h3>
+                                                <span className={`text-[10px] font-mono font-semibold px-2 py-0.5 rounded-md border ${levelColor}`}>{ch.level}</span>
+                                            </div>
+                                            <p className="text-xs text-slate-600 leading-relaxed">{ch.instructions}</p>
+
+                                            <button
+                                                onClick={() => checkChallenge(ch)}
+                                                className="w-full py-2 bg-slate-100 hover:bg-sky-600 hover:text-white text-slate-700 text-xs font-bold rounded-xl transition border border-slate-200 hover:border-sky-500"
+                                            >
+                                                Check My Plot
+                                            </button>
+
+                                            {result && (
+                                                result.passed ? (
+                                                    <div className="text-xs font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-lg p-2.5">
+                                                        ✅ Correct! Your Studio configuration matches this challenge.
+                                                    </div>
+                                                ) : (
+                                                    <div className="text-xs text-rose-700 bg-rose-50 border border-rose-200 rounded-lg p-2.5 space-y-1">
+                                                        <div className="font-semibold">❌ Not quite yet — check:</div>
+                                                        {result.mismatches.map((m, i) => (
+                                                            <div key={i} className="font-mono text-[11px]">
+                                                                {CHALLENGE_FIELD_LABELS[m.field] || m.field}: needs <strong>{String(m.expected)}</strong> (currently {String(m.got)})
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                )
+                                            )}
+                                        </div>
+                                    );
+                                })}
+                            </div>
+
+                            <div>
+                                <h2 className="text-xl font-bold text-slate-800">Common Mistakes & How to Fix Them</h2>
+                                <p className="text-xs text-slate-500 mt-1">The errors students hit most often when moving from this tool to real R code.</p>
+                            </div>
+
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                                {COMMON_MISTAKES.map((m, i) => (
+                                    <div key={i} className="bg-white rounded-2xl border border-slate-200 p-5 space-y-2 shadow-soft">
+                                        <h3 className="text-xs font-bold text-rose-600">⚠️ {m.mistake}</h3>
+                                        <p className="text-[11px] text-slate-500 font-mono">{m.symptom}</p>
+                                        <p className="text-xs text-slate-600 leading-relaxed whitespace-pre-line">✅ {m.fix}</p>
+                                    </div>
+                                ))}
+                            </div>
+                        </main>
+                    )}
+
                     {/* HELP PANEL (MODAL) */}
                     {showHelp && (
                         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm" onClick={() => setShowHelp(false)}>
@@ -1455,6 +1672,9 @@
                                             <li><strong className="text-amber-700">Facet Grouping</strong> — <code>facet_wrap(~ var)</code> splits the canvas into one mini-panel per category.</li>
                                             <li><strong className="text-rose-700">Theme &amp; Titles</strong> — cosmetic <code>theme_*()</code> preset plus the plot's title/subtitle text.</li>
                                             <li><strong className="text-emerald-700">Copy R Code</strong> — copies the fully generated script to your clipboard so you can run it directly in R with the named dataset loaded (or your own data frame with matching column names).</li>
+                                            <li><strong className="text-emerald-700">Download .R</strong> — saves the generated script as a real <code>.R</code> file you can open straight in RStudio.</li>
+                                            <li><strong className="text-emerald-700">🎯 Practice tab</strong> — guided challenges you configure in the Studio and self-check, plus a glossary of the most common ggplot2/R mistakes and how to fix them.</li>
+                                            <li><strong className="text-emerald-700">🔎 Classroom Mode</strong> — scales the entire interface up for visibility on a projector or from the back of a room.</li>
                                         </ul>
                                     </div>
 
