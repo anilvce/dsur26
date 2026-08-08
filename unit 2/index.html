@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Directory Listing</title>
+</head>
+<body>
+    <ul id="file-list"></ul>
+    <script>
+        const user = 'anilvce';
+        const repo = 'dsur26';
+        const path = '';  // Empty for root, or 'subfolder/'
+
+        async function listDirectory() {
+            const url = `https://api.github.com/repos/${user}/${repo}/contents/${path}`;
+            const response = await fetch(url);
+            const files = await response.json();
+            
+            const list = document.getElementById('file-list');
+            files.forEach(file => {
+                const li = document.createElement('li');
+                const a = document.createElement('a');
+                a.href = file.path;
+                a.textContent = file.name;
+                li.appendChild(a);
+                list.appendChild(li);
+            });
+        }
+        
+        listDirectory();
+    </script>
+</body>
+</html>
