@@ -1,0 +1,430 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MetricLab - Interactive ROC Curve & Classification Metrics</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap');
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #ffffff;
+            color: #1e293b;
+        }
+        .code-font {
+            font-family: 'JetBrains Mono', monospace;
+        }
+    </style>
+</head>
+<body class="min-h-screen p-4 md:p-8">
+
+    <div class="max-w-6xl mx-auto space-y-6">
+        
+        <!-- Header -->
+        <header class="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-200 pb-5">
+            <div>
+                <div class="flex items-center gap-2">
+                    <span class="bg-indigo-50 text-indigo-700 text-xs font-semibold px-2.5 py-1 rounded border border-indigo-200 uppercase tracking-wider">MetricLab Interactive</span>
+                    <span class="text-xs text-slate-500">v1.2</span>
+                </div>
+                <h1 class="text-2xl md:text-3xl font-extrabold text-slate-900 mt-1">Classification Metrics & ROC Curve Simulator</h1>
+                <p class="text-sm text-slate-600 mt-1">Explore how shifting the decision threshold reshapes Sensitivity, Specificity, Precision, Accuracy, and traces the ROC curve.</p>
+            </div>
+            <div class="flex items-center gap-3">
+                <button onclick="window.print()" class="bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs px-4 py-2.5 rounded-lg border border-slate-300 font-medium transition flex items-center gap-2 shadow-sm">
+                    <svg class="w-4 h-4 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path></svg>
+                    Print / Save PDF
+                </button>
+            </div>
+        </header>
+
+        <!-- Threshold Slider & Controls -->
+        <section class="bg-slate-50 p-5 rounded-2xl border border-slate-200 shadow-sm space-y-4">
+            <div class="flex flex-col md:flex-row md:items-center justify-between gap-2">
+                <div>
+                    <label for="thresholdSlider" class="text-sm font-semibold text-slate-800 flex items-center gap-2">
+                        <span>Decision Threshold (&tau;):</span>
+                        <span id="thresholdDisplay" class="text-indigo-600 font-bold text-xl code-font">0.50</span>
+                    </label>
+                    <p class="text-xs text-slate-500 mt-0.5">Predicted probability scores &ge; &tau; are classified as Positive (1), otherwise Negative (0).</p>
+                </div>
+                <div class="flex items-center gap-2">
+                    <span class="text-xs text-slate-500 font-medium">Presets:</span>
+                    <button onclick="setThreshold(0.85)" class="text-xs bg-white hover:bg-slate-100 text-slate-700 px-2.5 py-1 rounded border border-slate-300 shadow-sm transition">0.85 (Conservative)</button>
+                    <button onclick="setThreshold(0.50)" class="text-xs bg-white hover:bg-slate-100 text-slate-700 px-2.5 py-1 rounded border border-slate-300 shadow-sm transition">0.50 (Balanced)</button>
+                    <button onclick="setThreshold(0.25)" class="text-xs bg-white hover:bg-slate-100 text-slate-700 px-2.5 py-1 rounded border border-slate-300 shadow-sm transition">0.25 (Aggressive)</button>
+                </div>
+            </div>
+
+            <div class="relative flex items-center">
+                <input type="range" id="thresholdSlider" min="0" max="1" step="0.01" value="0.50"
+                       class="w-full h-2.5 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-indigo-600 border border-slate-300">
+            </div>
+            
+            <div class="flex justify-between text-[11px] text-slate-500 font-medium code-font">
+                <span>0.00 (Predict All Positives)</span>
+                <span>0.50</span>
+                <span>1.00 (Predict All Negatives)</span>
+            </div>
+        </section>
+
+        <!-- Live Metrics Cards -->
+        <section class="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex flex-col justify-between">
+                <div>
+                    <div class="flex items-center justify-between">
+                        <span class="text-xs font-semibold text-slate-600">Sensitivity / Recall</span>
+                        <span class="text-[10px] bg-emerald-50 text-emerald-700 px-1.5 py-0.5 rounded border border-emerald-200 font-medium">TPR</span>
+                    </div>
+                    <div id="sensitivityVal" class="text-3xl font-extrabold text-emerald-600 code-font mt-2">0.00</div>
+                </div>
+                <div class="text-[11px] text-slate-500 mt-3 border-t border-slate-100 pt-2 flex justify-between">
+                    <span>Formula:</span>
+                    <span class="code-font text-slate-700 font-medium">TP / (TP + FN)</span>
+                </div>
+            </div>
+
+            <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex flex-col justify-between">
+                <div>
+                    <div class="flex items-center justify-between">
+                        <span class="text-xs font-semibold text-slate-600">Specificity</span>
+                        <span class="text-[10px] bg-blue-50 text-blue-700 px-1.5 py-0.5 rounded border border-blue-200 font-medium">TNR</span>
+                    </div>
+                    <div id="specificityVal" class="text-3xl font-extrabold text-blue-600 code-font mt-2">0.00</div>
+                </div>
+                <div class="text-[11px] text-slate-500 mt-3 border-t border-slate-100 pt-2 flex justify-between">
+                    <span>Formula:</span>
+                    <span class="code-font text-slate-700 font-medium">TN / (TN + FP)</span>
+                </div>
+            </div>
+
+            <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex flex-col justify-between">
+                <div>
+                    <div class="flex items-center justify-between">
+                        <span class="text-xs font-semibold text-slate-600">Precision</span>
+                        <span class="text-[10px] bg-purple-50 text-purple-700 px-1.5 py-0.5 rounded border border-purple-200 font-medium">PPV</span>
+                    </div>
+                    <div id="precisionVal" class="text-3xl font-extrabold text-purple-600 code-font mt-2">0.00</div>
+                </div>
+                <div class="text-[11px] text-slate-500 mt-3 border-t border-slate-100 pt-2 flex justify-between">
+                    <span>Formula:</span>
+                    <span class="code-font text-slate-700 font-medium">TP / (TP + FP)</span>
+                </div>
+            </div>
+
+            <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex flex-col justify-between">
+                <div>
+                    <div class="flex items-center justify-between">
+                        <span class="text-xs font-semibold text-slate-600">Overall Accuracy</span>
+                        <span class="text-[10px] bg-amber-50 text-amber-700 px-1.5 py-0.5 rounded border border-amber-200 font-medium">ACC</span>
+                    </div>
+                    <div id="accuracyVal" class="text-3xl font-extrabold text-amber-600 code-font mt-2">0.00</div>
+                </div>
+                <div class="text-[11px] text-slate-500 mt-3 border-t border-slate-100 pt-2 flex justify-between">
+                    <span>Formula:</span>
+                    <span class="code-font text-slate-700 font-medium">(TP+TN) / Total</span>
+                </div>
+            </div>
+        </section>
+
+        <!-- Main Dashboard: Matrix + ROC Curve -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            
+            <!-- Left Column: Confusion Matrix & Sample Breakdown -->
+            <div class="space-y-6">
+                <!-- Confusion Matrix Card -->
+                <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-4">
+                    <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+                        <h3 class="text-sm font-bold text-slate-800 uppercase tracking-wider">Confusion Matrix</h3>
+                        <span class="text-xs text-slate-500 code-font">N = 10 Samples</span>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-3 text-center">
+                        <div class="bg-emerald-50/70 border border-emerald-200 p-3.5 rounded-xl flex flex-col justify-between">
+                            <span class="text-[11px] font-semibold text-emerald-800">True Positive (TP)</span>
+                            <span id="tpCount" class="text-3xl font-extrabold text-emerald-600 code-font my-1">0</span>
+                            <span class="text-[10px] text-emerald-700">Actual Pos, Pred Pos</span>
+                        </div>
+                        <div class="bg-rose-50/70 border border-rose-200 p-3.5 rounded-xl flex flex-col justify-between">
+                            <span class="text-[11px] font-semibold text-rose-800">False Positive (FP)</span>
+                            <span id="fpCount" class="text-3xl font-extrabold text-rose-600 code-font my-1">0</span>
+                            <span class="text-[10px] text-rose-700">Actual Neg, Pred Pos</span>
+                        </div>
+                        <div class="bg-amber-50/70 border border-amber-200 p-3.5 rounded-xl flex flex-col justify-between">
+                            <span class="text-[11px] font-semibold text-amber-800">False Negative (FN)</span>
+                            <span id="fnCount" class="text-3xl font-extrabold text-amber-600 code-font my-1">0</span>
+                            <span class="text-[10px] text-amber-700">Actual Pos, Pred Neg</span>
+                        </div>
+                        <div class="bg-blue-50/70 border border-blue-200 p-3.5 rounded-xl flex flex-col justify-between">
+                            <span class="text-[11px] font-semibold text-blue-800">True Negative (TN)</span>
+                            <span id="tnCount" class="text-3xl font-extrabold text-blue-600 code-font my-1">0</span>
+                            <span class="text-[10px] text-blue-700">Actual Neg, Pred Neg</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Sample Inspection List -->
+                <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-3">
+                    <h3 class="text-sm font-bold text-slate-800 uppercase tracking-wider border-b border-slate-100 pb-2">Sample Predictions Table</h3>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left text-xs">
+                            <thead>
+                                <tr class="text-slate-500 border-b border-slate-200">
+                                    <th class="pb-2 font-medium">Actual</th>
+                                    <th class="pb-2 font-medium">Score</th>
+                                    <th class="pb-2 font-medium">Pred</th>
+                                    <th class="pb-2 font-medium text-right">Status</th>
+                                </tr>
+                            </thead>
+                            <tbody id="sampleTableBody" class="divide-y divide-slate-100 code-font">
+                                <!-- Populated dynamically by JS -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right Column: ROC Curve & Behavior Explanation -->
+            <div class="lg:col-span-2 space-y-6">
+                <!-- ROC Chart Card -->
+                <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-3">
+                    <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+                        <div>
+                            <h3 class="text-sm font-bold text-slate-800 uppercase tracking-wider">ROC Curve (Receiver Operating Characteristic)</h3>
+                            <p class="text-xs text-slate-500 mt-0.5">Plotting True Positive Rate (Sensitivity) vs False Positive Rate (1 - Specificity)</p>
+                        </div>
+                        <span class="text-xs bg-indigo-50 text-indigo-700 border border-indigo-200 px-2.5 py-1 rounded font-semibold code-font">AUC = 0.72</span>
+                    </div>
+
+                    <div class="h-72 w-full">
+                        <canvas id="rocCanvas"></canvas>
+                    </div>
+                </div>
+
+                <!-- Behavior Insights Card -->
+                <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-3">
+                    <h3 class="text-sm font-bold text-slate-800 uppercase tracking-wider flex items-center gap-2">
+                        <svg class="w-4 h-4 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                        Current Model Behavior Insight
+                    </h3>
+                    <p id="behaviorText" class="text-xs leading-relaxed text-slate-700 bg-slate-50 p-4 rounded-xl border border-slate-200">
+                        Adjust the slider above to see detailed insight into classifier behavior at the chosen threshold.
+                    </p>
+                </div>
+            </div>
+
+        </div>
+
+    </div>
+
+    <!-- JavaScript Logic -->
+    <script>
+        // Dataset definition (5 Negatives, 5 Positives)
+        /* const dataset = [
+            { actual: 0, score: 0.10 },
+            { actual: 0, score: 0.20 },
+            { actual: 1, score: 0.30 },
+            { actual: 0, score: 0.40 },
+            { actual: 1, score: 0.50 },
+            { actual: 0, score: 0.55 },
+            { actual: 0, score: 0.65 },
+            { actual: 1, score: 0.70 },
+            { actual: 1, score: 0.80 },
+            { actual: 1, score: 0.90 }
+        ];
+ */
+ const dataset = [
+    { actual: 0, score: 0.98 },
+    { actual: 1, score: 0.67 },
+    { actual: 1, score: 0.58 },
+    { actual: 0, score: 0.78 },
+    { actual: 1, score: 0.85 },
+    { actual: 0, score: 0.86 },
+    { actual: 0, score: 0.79 },
+    { actual: 0, score: 0.89 },
+    { actual: 1, score: 0.82 },
+    { actual: 0, score: 0.86 }
+];
+        // Unique thresholds for ROC step curve computation
+        const thresholds = [1.01, 0.90, 0.80, 0.70, 0.65, 0.55, 0.50, 0.40, 0.30, 0.20, 0.10, 0.00];
+        
+        // Compute full ROC points
+        const rocData = thresholds.map(t => {
+            let tp = 0, fp = 0, fn = 0, tn = 0;
+            dataset.forEach(item => {
+                const pred = item.score >= t ? 1 : 0;
+                if (item.actual === 1 && pred === 1) tp++;
+                if (item.actual === 0 && pred === 1) fp++;
+                if (item.actual === 1 && pred === 0) fn++;
+                if (item.actual === 0 && pred === 0) tn++;
+            });
+            return {
+                x: fp / 5, // FPR
+                y: tp / 5, // TPR
+                threshold: t
+            };
+        });
+
+        // Initialize Chart.js with light-theme colors and high-contrast grids
+        const ctx = document.getElementById('rocCanvas').getContext('2d');
+        const rocChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                datasets: [
+                    {
+                        label: 'Active Operating Point',
+                        data: [{ x: 0, y: 0 }],
+                        backgroundColor: '#4f46e5',
+                        borderColor: '#4338ca',
+                        pointRadius: 8,
+                        pointHoverRadius: 10,
+                        pointBorderColor: '#ffffff',
+                        pointBorderWidth: 2,
+                        showLine: false,
+                        order: 1
+                    },
+                    {
+                        label: 'ROC Curve (Step)',
+                        data: rocData,
+                        borderColor: '#0284c7',
+                        borderWidth: 2.5,
+                        stepped: 'before',
+                        pointRadius: 3,
+                        pointBackgroundColor: '#0284c7',
+                        fill: false,
+                        order: 2
+                    },
+                    {
+                        label: 'Random Guessing (AUC = 0.50)',
+                        data: [{ x: 0, y: 0 }, { x: 1, y: 1 }],
+                        borderColor: '#94a3b8',
+                        borderWidth: 1.5,
+                        borderDash: [5, 5],
+                        pointRadius: 0,
+                        fill: false,
+                        order: 3
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    x: {
+                        type: 'linear',
+                        min: 0,
+                        max: 1,
+                        title: { display: true, text: 'False Positive Rate (FPR = 1 - Specificity)', color: '#334155', font: { size: 11, weight: '600' } },
+                        grid: { color: '#e2e8f0' },
+                        ticks: { color: '#64748b' }
+                    },
+                    y: {
+                        type: 'linear',
+                        min: 0,
+                        max: 1,
+                        title: { display: true, text: 'True Positive Rate (TPR = Sensitivity)', color: '#334155', font: { size: 11, weight: '600' } },
+                        grid: { color: '#e2e8f0' },
+                        ticks: { color: '#64748b' }
+                    }
+                },
+                plugins: {
+                    legend: {
+                        labels: { color: '#334155', font: { size: 11 } }
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                if (context.datasetIndex === 0) {
+                                    return `Active Point: FPR=${context.raw.x.toFixed(2)}, TPR=${context.raw.y.toFixed(2)}`;
+                                }
+                                return `FPR: ${context.raw.x.toFixed(2)}, TPR: ${context.raw.y.toFixed(2)}`;
+                            }
+                        }
+                    }
+                }
+            }
+        });
+
+        // Update application state when slider changes
+        function updateDashboard() {
+            const threshold = parseFloat(document.getElementById('thresholdSlider').value);
+            document.getElementById('thresholdDisplay').innerText = threshold.toFixed(2);
+
+            let tp = 0, fp = 0, fn = 0, tn = 0;
+            const tableBody = document.getElementById('sampleTableBody');
+            tableBody.innerHTML = '';
+
+            dataset.forEach((item) => {
+                const pred = item.score >= threshold ? 1 : 0;
+                let statusBadge = '';
+                
+                if (item.actual === 1 && pred === 1) {
+                    tp++;
+                    statusBadge = '<span class="text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200 font-medium">TP</span>';
+                } else if (item.actual === 0 && pred === 1) {
+                    fp++;
+                    statusBadge = '<span class="text-rose-700 bg-rose-50 px-1.5 py-0.5 rounded border border-rose-200 font-medium">FP</span>';
+                } else if (item.actual === 1 && pred === 0) {
+                    fn++;
+                    statusBadge = '<span class="text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200 font-medium">FN</span>';
+                } else {
+                    tn++;
+                    statusBadge = '<span class="text-blue-700 bg-blue-50 px-1.5 py-0.5 rounded border border-blue-200 font-medium">TN</span>';
+                }
+
+                const row = `
+                    <tr class="hover:bg-slate-50">
+                        <td class="py-1.5 font-semibold ${item.actual === 1 ? 'text-emerald-700' : 'text-slate-500'}">${item.actual === 1 ? 'Positive (1)' : 'Negative (0)'}</td>
+                        <td class="py-1.5 text-slate-700">${item.score.toFixed(2)}</td>
+                        <td class="py-1.5 font-semibold ${pred === 1 ? 'text-indigo-600' : 'text-slate-400'}">${pred}</td>
+                        <td class="py-1.5 text-right">${statusBadge}</td>
+                    </tr>
+                `;
+                tableBody.innerHTML += row;
+            });
+
+            // Calculate metrics
+            const sensitivity = (tp + fn) > 0 ? tp / (tp + fn) : 0;
+            const specificity = (tn + fp) > 0 ? tn / (tn + fp) : 0;
+            const precision = (tp + fp) > 0 ? tp / (tp + fp) : 0;
+            const accuracy = (tp + tn) / dataset.length;
+            const fpr = 1 - specificity;
+
+            // DOM updates
+            document.getElementById('tpCount').innerText = tp;
+            document.getElementById('fpCount').innerText = fp;
+            document.getElementById('fnCount').innerText = fn;
+            document.getElementById('tnCount').innerText = tn;
+
+            document.getElementById('sensitivityVal').innerText = sensitivity.toFixed(2);
+            document.getElementById('specificityVal').innerText = specificity.toFixed(2);
+            document.getElementById('precisionVal').innerText = (tp + fp) === 0 ? "N/A" : precision.toFixed(2);
+            document.getElementById('accuracyVal').innerText = accuracy.toFixed(2);
+
+            // Update ROC Active Point
+            rocChart.data.datasets[0].data = [{ x: fpr, y: sensitivity }];
+            rocChart.update('none');
+
+            // Dynamic text insights
+            const insightBox = document.getElementById('behaviorText');
+            if (threshold > 0.80) {
+                insightBox.innerHTML = `<strong class="text-amber-800">Conservative Mode (&tau; = ${threshold.toFixed(2)}):</strong> The model requires very high confidence before predicting Positive. Result: <span class="text-blue-700 font-semibold">High Specificity</span> (few false alarms), but <span class="text-amber-800 font-semibold">Low Sensitivity / Recall</span> (missed positive cases). Operating point sits near bottom-left (0,0) of ROC.`;
+            } else if (threshold <= 0.30) {
+                insightBox.innerHTML = `<strong class="text-rose-800">Aggressive Mode (&tau; = ${threshold.toFixed(2)}):</strong> The model easily predicts Positive for low scores. Result: <span class="text-emerald-700 font-semibold">100% Sensitivity</span> (catches all true positives), but at the expense of a <span class="text-rose-700 font-semibold">High False Positive Rate</span>. Operating point shifts to top-right corner of ROC.`;
+            } else {
+                insightBox.innerHTML = `<strong class="text-indigo-800">Balanced Operating Point (&tau; = ${threshold.toFixed(2)}):</strong> Represents a moderate balance between catching true positive samples (Sensitivity = ${sensitivity.toFixed(2)}) and keeping false alarms under control (Specificity = ${specificity.toFixed(2)}).`;
+            }
+        }
+
+        function setThreshold(val) {
+            document.getElementById('thresholdSlider').value = val;
+            updateDashboard();
+        }
+
+        document.getElementById('thresholdSlider').addEventListener('input', updateDashboard);
+        updateDashboard(); // Initial load calculation
+    </script>
+</body>
+</html>
