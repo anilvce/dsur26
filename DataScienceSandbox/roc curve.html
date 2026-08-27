@@ -27,10 +27,10 @@
             <div>
                 <div class="flex items-center gap-2">
                     <span class="bg-indigo-50 text-indigo-700 text-xs font-semibold px-2.5 py-1 rounded border border-indigo-200 uppercase tracking-wider">MetricLab Interactive</span>
-                    <span class="text-xs text-slate-500">v1.2</span>
+                    <span class="text-xs text-slate-500">v2.1 (Custom Sample Count)</span>
                 </div>
                 <h1 class="text-2xl md:text-3xl font-extrabold text-slate-900 mt-1">Classification Metrics & ROC Curve Simulator</h1>
-                <p class="text-sm text-slate-600 mt-1">Explore how shifting the decision threshold reshapes Sensitivity, Specificity, Precision, Accuracy, and traces the ROC curve.</p>
+                <p class="text-sm text-slate-600 mt-1">Randomized simulator modeling custom sample data points across continuous decision thresholds.</p>
             </div>
             <div class="flex items-center gap-3">
                 <button onclick="window.print()" class="bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs px-4 py-2.5 rounded-lg border border-slate-300 font-medium transition flex items-center gap-2 shadow-sm">
@@ -40,15 +40,20 @@
             </div>
         </header>
 
-        <!-- Threshold Slider & Controls -->
+        <!-- Generation & Controls Bar -->
         <section class="bg-slate-50 p-5 rounded-2xl border border-slate-200 shadow-sm space-y-4">
-            <div class="flex flex-col md:flex-row md:items-center justify-between gap-2">
-                <div>
-                    <label for="thresholdSlider" class="text-sm font-semibold text-slate-800 flex items-center gap-2">
-                        <span>Decision Threshold (&tau;):</span>
-                        <span id="thresholdDisplay" class="text-indigo-600 font-bold text-xl code-font">0.50</span>
+            <!-- Sample Input Controls -->
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-200 pb-4">
+                <div class="flex items-center gap-3">
+                    <label for="sampleInput" class="text-xs font-semibold text-slate-700 uppercase tracking-wider">
+                        Number of Rows/Samples:
                     </label>
-                    <p class="text-xs text-slate-500 mt-0.5">Predicted probability scores &ge; &tau; are classified as Positive (1), otherwise Negative (0).</p>
+                    <input type="number" id="sampleInput" min="10" max="5000" value="100" step="10"
+                           class="w-24 bg-white border border-slate-300 rounded-lg px-3 py-1.5 text-sm code-font font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                    <button onclick="regenerateData()" class="bg-indigo-600 hover:bg-indigo-700 text-white text-xs px-4 py-2 rounded-lg font-medium transition flex items-center gap-2 shadow-sm">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
+                        Generate Data
+                    </button>
                 </div>
                 <div class="flex items-center gap-2">
                     <span class="text-xs text-slate-500 font-medium">Presets:</span>
@@ -58,15 +63,26 @@
                 </div>
             </div>
 
-            <div class="relative flex items-center">
-                <input type="range" id="thresholdSlider" min="0" max="1" step="0.01" value="0.50"
-                       class="w-full h-2.5 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-indigo-600 border border-slate-300">
-            </div>
-            
-            <div class="flex justify-between text-[11px] text-slate-500 font-medium code-font">
-                <span>0.00 (Predict All Positives)</span>
-                <span>0.50</span>
-                <span>1.00 (Predict All Negatives)</span>
+            <!-- Threshold Slider -->
+            <div class="space-y-2">
+                <div class="flex items-center justify-between">
+                    <label for="thresholdSlider" class="text-sm font-semibold text-slate-800 flex items-center gap-2">
+                        <span>Decision Threshold (&tau;):</span>
+                        <span id="thresholdDisplay" class="text-indigo-600 font-bold text-xl code-font">0.50</span>
+                    </label>
+                    <span class="text-xs text-slate-500">Predicted probability scores &ge; &tau; are classified as Positive (1).</span>
+                </div>
+
+                <div class="relative flex items-center">
+                    <input type="range" id="thresholdSlider" min="0" max="1" step="0.01" value="0.50"
+                           class="w-full h-2.5 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-indigo-600 border border-slate-300">
+                </div>
+                
+                <div class="flex justify-between text-[11px] text-slate-500 font-medium code-font">
+                    <span>0.00 (Predict All Positives)</span>
+                    <span>0.50</span>
+                    <span>1.00 (Predict All Negatives)</span>
+                </div>
             </div>
         </section>
 
@@ -138,7 +154,7 @@
                 <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-4">
                     <div class="flex items-center justify-between border-b border-slate-100 pb-3">
                         <h3 class="text-sm font-bold text-slate-800 uppercase tracking-wider">Confusion Matrix</h3>
-                        <span class="text-xs text-slate-500 code-font">N = 10 Samples</span>
+                        <span id="sampleCountDisplay" class="text-xs text-slate-500 code-font">N = 100 Samples</span>
                     </div>
 
                     <div class="grid grid-cols-2 gap-3 text-center">
@@ -167,10 +183,13 @@
 
                 <!-- Sample Inspection List -->
                 <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-3">
-                    <h3 class="text-sm font-bold text-slate-800 uppercase tracking-wider border-b border-slate-100 pb-2">Sample Predictions Table</h3>
-                    <div class="overflow-x-auto">
+                    <div class="flex justify-between items-center border-b border-slate-100 pb-2">
+                        <h3 class="text-sm font-bold text-slate-800 uppercase tracking-wider">Sample Predictions</h3>
+                        <span class="text-[11px] text-slate-400">First 15 rows shown</span>
+                    </div>
+                    <div class="overflow-x-auto max-h-64 overflow-y-auto">
                         <table class="w-full text-left text-xs">
-                            <thead>
+                            <thead class="sticky top-0 bg-white">
                                 <tr class="text-slate-500 border-b border-slate-200">
                                     <th class="pb-2 font-medium">Actual</th>
                                     <th class="pb-2 font-medium">Score</th>
@@ -192,13 +211,13 @@
                 <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-3">
                     <div class="flex items-center justify-between border-b border-slate-100 pb-3">
                         <div>
-                            <h3 class="text-sm font-bold text-slate-800 uppercase tracking-wider">ROC Curve (Receiver Operating Characteristic)</h3>
+                            <h3 class="text-sm font-bold text-slate-800 uppercase tracking-wider">ROC Curve</h3>
                             <p class="text-xs text-slate-500 mt-0.5">Plotting True Positive Rate (Sensitivity) vs False Positive Rate (1 - Specificity)</p>
                         </div>
-                        <span class="text-xs bg-indigo-50 text-indigo-700 border border-indigo-200 px-2.5 py-1 rounded font-semibold code-font">AUC = 0.72</span>
+                        <span id="aucDisplay" class="text-xs bg-indigo-50 text-indigo-700 border border-indigo-200 px-2.5 py-1 rounded font-semibold code-font">AUC = 0.00</span>
                     </div>
 
-                    <div class="h-72 w-full">
+                    <div class="h-80 w-full">
                         <canvas id="rocCanvas"></canvas>
                     </div>
                 </div>
@@ -221,131 +240,169 @@
 
     <!-- JavaScript Logic -->
     <script>
-        // Dataset definition (5 Negatives, 5 Positives)
-        /* const dataset = [
-            { actual: 0, score: 0.10 },
-            { actual: 0, score: 0.20 },
-            { actual: 1, score: 0.30 },
-            { actual: 0, score: 0.40 },
-            { actual: 1, score: 0.50 },
-            { actual: 0, score: 0.55 },
-            { actual: 0, score: 0.65 },
-            { actual: 1, score: 0.70 },
-            { actual: 1, score: 0.80 },
-            { actual: 1, score: 0.90 }
-        ];
- */
- const dataset = [
-    { actual: 0, score: 0.98 },
-    { actual: 1, score: 0.67 },
-    { actual: 1, score: 0.58 },
-    { actual: 0, score: 0.78 },
-    { actual: 1, score: 0.85 },
-    { actual: 0, score: 0.86 },
-    { actual: 0, score: 0.79 },
-    { actual: 0, score: 0.89 },
-    { actual: 1, score: 0.82 },
-    { actual: 0, score: 0.86 }
-];
-        // Unique thresholds for ROC step curve computation
-        const thresholds = [1.01, 0.90, 0.80, 0.70, 0.65, 0.55, 0.50, 0.40, 0.30, 0.20, 0.10, 0.00];
-        
-        // Compute full ROC points
-        const rocData = thresholds.map(t => {
-            let tp = 0, fp = 0, fn = 0, tn = 0;
-            dataset.forEach(item => {
-                const pred = item.score >= t ? 1 : 0;
-                if (item.actual === 1 && pred === 1) tp++;
-                if (item.actual === 0 && pred === 1) fp++;
-                if (item.actual === 1 && pred === 0) fn++;
-                if (item.actual === 0 && pred === 0) tn++;
-            });
-            return {
-                x: fp / 5, // FPR
-                y: tp / 5, // TPR
-                threshold: t
-            };
-        });
+        let dataset = [];
+        let rocData = [];
+        let rocChart = null;
 
-        // Initialize Chart.js with light-theme colors and high-contrast grids
-        const ctx = document.getElementById('rocCanvas').getContext('2d');
-        const rocChart = new Chart(ctx, {
-            type: 'line',
-            data: {
-                datasets: [
-                    {
-                        label: 'Active Operating Point',
-                        data: [{ x: 0, y: 0 }],
-                        backgroundColor: '#4f46e5',
-                        borderColor: '#4338ca',
-                        pointRadius: 8,
-                        pointHoverRadius: 10,
-                        pointBorderColor: '#ffffff',
-                        pointBorderWidth: 2,
-                        showLine: false,
-                        order: 1
-                    },
-                    {
-                        label: 'ROC Curve (Step)',
-                        data: rocData,
-                        borderColor: '#0284c7',
-                        borderWidth: 2.5,
-                        stepped: 'before',
-                        pointRadius: 3,
-                        pointBackgroundColor: '#0284c7',
-                        fill: false,
-                        order: 2
-                    },
-                    {
-                        label: 'Random Guessing (AUC = 0.50)',
-                        data: [{ x: 0, y: 0 }, { x: 1, y: 1 }],
-                        borderColor: '#94a3b8',
-                        borderWidth: 1.5,
-                        borderDash: [5, 5],
-                        pointRadius: 0,
-                        fill: false,
-                        order: 3
+        // Generate dynamic probabilistic samples based on user input sample count
+        function generateRandomDataset(numSamples = 100) {
+            const data = [];
+            const half = Math.floor(numSamples / 2);
+            
+            // Generate Negatives (actual = 0) clustered around mean score 0.35
+            for (let i = 0; i < half; i++) {
+                let u1 = Math.random(), u2 = Math.random();
+                let norm = Math.sqrt(-2.0 * Math.log(u1)) * Math.cos(2.0 * Math.PI * u2);
+                let score = Math.max(0.01, Math.min(0.99, 0.35 + norm * 0.17));
+                data.push({ actual: 0, score: parseFloat(score.toFixed(3)) });
+            }
+            
+            // Generate Positives (actual = 1) clustered around mean score 0.65
+            for (let i = 0; i < numSamples - half; i++) {
+                let u1 = Math.random(), u2 = Math.random();
+                let norm = Math.sqrt(-2.0 * Math.log(u1)) * Math.cos(2.0 * Math.PI * u2);
+                let score = Math.max(0.01, Math.min(0.99, 0.65 + norm * 0.17));
+                data.push({ actual: 1, score: parseFloat(score.toFixed(3)) });
+            }
+            
+            return data.sort((a, b) => a.score - b.score);
+        }
+
+        // Compute ROC points and Area Under Curve (AUC)
+        function computeROC(data) {
+            const posCount = data.filter(d => d.actual === 1).length;
+            const negCount = data.filter(d => d.actual === 0).length;
+            
+            // Generate 101 thresholds from 1.0 down to 0.0
+            const thresholds = [];
+            for (let i = 100; i >= 0; i--) {
+                thresholds.push(i / 100);
+            }
+
+            const points = thresholds.map(t => {
+                let tp = 0, fp = 0;
+                data.forEach(item => {
+                    if (item.score >= t) {
+                        if (item.actual === 1) tp++;
+                        else fp++;
                     }
-                ]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                scales: {
-                    x: {
-                        type: 'linear',
-                        min: 0,
-                        max: 1,
-                        title: { display: true, text: 'False Positive Rate (FPR = 1 - Specificity)', color: '#334155', font: { size: 11, weight: '600' } },
-                        grid: { color: '#e2e8f0' },
-                        ticks: { color: '#64748b' }
-                    },
-                    y: {
-                        type: 'linear',
-                        min: 0,
-                        max: 1,
-                        title: { display: true, text: 'True Positive Rate (TPR = Sensitivity)', color: '#334155', font: { size: 11, weight: '600' } },
-                        grid: { color: '#e2e8f0' },
-                        ticks: { color: '#64748b' }
-                    }
+                });
+                return {
+                    x: negCount > 0 ? fp / negCount : 0, // FPR
+                    y: posCount > 0 ? tp / posCount : 0, // TPR
+                    threshold: t
+                };
+            });
+
+            // Calculate AUC using trapezoidal rule
+            let auc = 0;
+            for (let i = 1; i < points.length; i++) {
+                const dx = points[i].x - points[i - 1].x;
+                const avgY = (points[i].y + points[i - 1].y) / 2;
+                auc += dx * avgY;
+            }
+
+            return { points, auc: Math.abs(auc) };
+        }
+
+        // Initialize Chart.js
+        function initChart() {
+            const ctx = document.getElementById('rocCanvas').getContext('2d');
+            rocChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    datasets: [
+                        {
+                            label: 'Active Operating Point',
+                            data: [{ x: 0, y: 0 }],
+                            backgroundColor: '#4f46e5',
+                            borderColor: '#4338ca',
+                            pointRadius: 8,
+                            pointHoverRadius: 10,
+                            pointBorderColor: '#ffffff',
+                            pointBorderWidth: 2,
+                            showLine: false,
+                            order: 1
+                        },
+                        {
+                            label: 'ROC Curve',
+                            data: [],
+                            borderColor: '#0284c7',
+                            borderWidth: 2.5,
+                            stepped: 'before',
+                            pointRadius: 1.5,
+                            pointBackgroundColor: '#0284c7',
+                            fill: false,
+                            order: 2
+                        },
+                        {
+                            label: 'Random Chance (AUC = 0.50)',
+                            data: [{ x: 0, y: 0 }, { x: 1, y: 1 }],
+                            borderColor: '#94a3b8',
+                            borderWidth: 1.5,
+                            borderDash: [5, 5],
+                            pointRadius: 0,
+                            fill: false,
+                            order: 3
+                        }
+                    ]
                 },
-                plugins: {
-                    legend: {
-                        labels: { color: '#334155', font: { size: 11 } }
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        x: {
+                            type: 'linear',
+                            min: 0,
+                            max: 1,
+                            title: { display: true, text: 'False Positive Rate (FPR = 1 - Specificity)', color: '#334155', font: { size: 11, weight: '600' } },
+                            grid: { color: '#e2e8f0' },
+                            ticks: { color: '#64748b' }
+                        },
+                        y: {
+                            type: 'linear',
+                            min: 0,
+                            max: 1,
+                            title: { display: true, text: 'True Positive Rate (TPR = Sensitivity)', color: '#334155', font: { size: 11, weight: '600' } },
+                            grid: { color: '#e2e8f0' },
+                            ticks: { color: '#64748b' }
+                        }
                     },
-                    tooltip: {
-                        callbacks: {
-                            label: function(context) {
-                                if (context.datasetIndex === 0) {
-                                    return `Active Point: FPR=${context.raw.x.toFixed(2)}, TPR=${context.raw.y.toFixed(2)}`;
+                    plugins: {
+                        legend: {
+                            labels: { color: '#334155', font: { size: 11 } }
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    if (context.datasetIndex === 0) {
+                                        return `Active Point: FPR=${context.raw.x.toFixed(2)}, TPR=${context.raw.y.toFixed(2)}`;
+                                    }
+                                    return `FPR: ${context.raw.x.toFixed(2)}, TPR: ${context.raw.y.toFixed(2)}`;
                                 }
-                                return `FPR: ${context.raw.x.toFixed(2)}, TPR: ${context.raw.y.toFixed(2)}`;
                             }
                         }
                     }
                 }
-            }
-        });
+            });
+        }
+
+        // Read user input row count and regenerate dataset
+        function regenerateData() {
+            let numSamples = parseInt(document.getElementById('sampleInput').value) || 100;
+            if (numSamples < 5) numSamples = 5; // minimum fallback safety
+            
+            dataset = generateRandomDataset(numSamples);
+            const rocResult = computeROC(dataset);
+            rocData = rocResult.points;
+            
+            document.getElementById('aucDisplay').innerText = `AUC = ${rocResult.auc.toFixed(3)}`;
+            document.getElementById('sampleCountDisplay').innerText = `N = ${dataset.length} Samples`;
+            
+            rocChart.data.datasets[1].label = `ROC Curve (${dataset.length} Points)`;
+            rocChart.data.datasets[1].data = rocData;
+            updateDashboard();
+        }
 
         // Update application state when slider changes
         function updateDashboard() {
@@ -353,10 +410,13 @@
             document.getElementById('thresholdDisplay').innerText = threshold.toFixed(2);
 
             let tp = 0, fp = 0, fn = 0, tn = 0;
+            const posTotal = dataset.filter(d => d.actual === 1).length;
+            const negTotal = dataset.filter(d => d.actual === 0).length;
+
             const tableBody = document.getElementById('sampleTableBody');
             tableBody.innerHTML = '';
 
-            dataset.forEach((item) => {
+            dataset.forEach((item, index) => {
                 const pred = item.score >= threshold ? 1 : 0;
                 let statusBadge = '';
                 
@@ -374,20 +434,23 @@
                     statusBadge = '<span class="text-blue-700 bg-blue-50 px-1.5 py-0.5 rounded border border-blue-200 font-medium">TN</span>';
                 }
 
-                const row = `
-                    <tr class="hover:bg-slate-50">
-                        <td class="py-1.5 font-semibold ${item.actual === 1 ? 'text-emerald-700' : 'text-slate-500'}">${item.actual === 1 ? 'Positive (1)' : 'Negative (0)'}</td>
-                        <td class="py-1.5 text-slate-700">${item.score.toFixed(2)}</td>
-                        <td class="py-1.5 font-semibold ${pred === 1 ? 'text-indigo-600' : 'text-slate-400'}">${pred}</td>
-                        <td class="py-1.5 text-right">${statusBadge}</td>
-                    </tr>
-                `;
-                tableBody.innerHTML += row;
+                // Display first 15 rows in visual inspection panel
+                if (index < 15) {
+                    const row = `
+                        <tr class="hover:bg-slate-50">
+                            <td class="py-1.5 font-semibold ${item.actual === 1 ? 'text-emerald-700' : 'text-slate-500'}">${item.actual === 1 ? 'Positive (1)' : 'Negative (0)'}</td>
+                            <td class="py-1.5 text-slate-700">${item.score.toFixed(3)}</td>
+                            <td class="py-1.5 font-semibold ${pred === 1 ? 'text-indigo-600' : 'text-slate-400'}">${pred}</td>
+                            <td class="py-1.5 text-right">${statusBadge}</td>
+                        </tr>
+                    `;
+                    tableBody.innerHTML += row;
+                }
             });
 
-            // Calculate metrics
-            const sensitivity = (tp + fn) > 0 ? tp / (tp + fn) : 0;
-            const specificity = (tn + fp) > 0 ? tn / (tn + fp) : 0;
+            // Compute metrics
+            const sensitivity = posTotal > 0 ? tp / posTotal : 0;
+            const specificity = negTotal > 0 ? tn / negTotal : 0;
             const precision = (tp + fp) > 0 ? tp / (tp + fp) : 0;
             const accuracy = (tp + tn) / dataset.length;
             const fpr = 1 - specificity;
@@ -409,12 +472,12 @@
 
             // Dynamic text insights
             const insightBox = document.getElementById('behaviorText');
-            if (threshold > 0.80) {
-                insightBox.innerHTML = `<strong class="text-amber-800">Conservative Mode (&tau; = ${threshold.toFixed(2)}):</strong> The model requires very high confidence before predicting Positive. Result: <span class="text-blue-700 font-semibold">High Specificity</span> (few false alarms), but <span class="text-amber-800 font-semibold">Low Sensitivity / Recall</span> (missed positive cases). Operating point sits near bottom-left (0,0) of ROC.`;
+            if (threshold > 0.75) {
+                insightBox.innerHTML = `<strong class="text-amber-800">Conservative Mode (&tau; = ${threshold.toFixed(2)}):</strong> High threshold minimizes false alarms (<span class="text-blue-700 font-semibold">Specificity = ${specificity.toFixed(2)}</span>), but misses true positives (<span class="text-amber-800 font-semibold">Sensitivity = ${sensitivity.toFixed(2)}</span>).`;
             } else if (threshold <= 0.30) {
-                insightBox.innerHTML = `<strong class="text-rose-800">Aggressive Mode (&tau; = ${threshold.toFixed(2)}):</strong> The model easily predicts Positive for low scores. Result: <span class="text-emerald-700 font-semibold">100% Sensitivity</span> (catches all true positives), but at the expense of a <span class="text-rose-700 font-semibold">High False Positive Rate</span>. Operating point shifts to top-right corner of ROC.`;
+                insightBox.innerHTML = `<strong class="text-rose-800">Aggressive Mode (&tau; = ${threshold.toFixed(2)}):</strong> Low threshold captures almost all positives (<span class="text-emerald-700 font-semibold">Sensitivity = ${sensitivity.toFixed(2)}</span>) at the cost of high false alarm rates (<span class="text-rose-700 font-semibold">FPR = ${fpr.toFixed(2)}</span>).`;
             } else {
-                insightBox.innerHTML = `<strong class="text-indigo-800">Balanced Operating Point (&tau; = ${threshold.toFixed(2)}):</strong> Represents a moderate balance between catching true positive samples (Sensitivity = ${sensitivity.toFixed(2)}) and keeping false alarms under control (Specificity = ${specificity.toFixed(2)}).`;
+                insightBox.innerHTML = `<strong class="text-indigo-800">Balanced Operating Point (&tau; = ${threshold.toFixed(2)}):</strong> Balance achieved across ${dataset.length} samples with Sensitivity = ${sensitivity.toFixed(2)}, Specificity = ${specificity.toFixed(2)}, Precision = ${(tp+fp)===0?'N/A':precision.toFixed(2)}.`;
             }
         }
 
@@ -424,7 +487,12 @@
         }
 
         document.getElementById('thresholdSlider').addEventListener('input', updateDashboard);
-        updateDashboard(); // Initial load calculation
+        
+        // Initial Startup
+        window.onload = () => {
+            initChart();
+            regenerateData();
+        };
     </script>
 </body>
 </html>
