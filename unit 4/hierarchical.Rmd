@@ -1,0 +1,53 @@
+---
+title: "hierarchical clustering"
+author: "N Anil Kumar"
+output:
+  html_document:
+    df_print: paged
+---
+
+```{r}
+# Install the ISLR2 package if not already installed
+#install.packages("ISLR2")
+
+# Load the ISLR2 package
+library(ISLR2)
+
+# Load the NCI60 dataset
+data("NCI60")
+
+# View the structure of the dataset
+str(NCI60)
+
+# Access gene expression data
+head(NCI60$data[,1:5])
+
+# Access cancer type labels
+table(NCI60$labs)
+
+```
+```{r}
+g.lab<-head(NCI60$labs,100)
+g.data<-head(NCI60$data,100)
+```
+
+```{r}
+data <- scale(g.data)
+distance_matrix <- dist(data, method = "euclidean")
+#complete
+
+# Distance matrix
+
+
+# Hierarchical clustering
+hc <- hclust(distance_matrix, method = "complete")
+hc <- hclust(distance_matrix, method = "average")
+hc <- hclust(distance_matrix, method = "single")
+# Dendrogram
+#plot(as.dendrogram(hc),hang=-1 main = "complete")
+plot(hc)
+```
+```{r}
+plot(as.dendrogram(hc), main = "complete")
+```
+
