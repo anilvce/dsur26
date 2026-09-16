@@ -1,0 +1,8 @@
+install.packages("tidyr")
+install.packages("ggplot2")
+install.packages("ggraph")
+install.packages("glue")
+install.packages("shiny")
+install.packages("readxl")
+install.packages("writexl")
+install.packages("XML")
